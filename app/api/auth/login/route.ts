@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkPassword, createSessionToken, AUTH_COOKIE_NAME } from "@/lib/auth";
+import { authConfigError, checkPassword, createSessionToken, AUTH_COOKIE_NAME } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  if (!process.env.APP_PASSWORD) {
-    return NextResponse.json(
-      { error: "APP_PASSWORD is not configured on the server." },
-      { status: 500 }
-    );
+  const configError = authConfigError();
+  if (configError) {
+    return NextResponse.json({ error: `Server misconfigured: ${configError}` }, { status: 500 });
   }
 
   const body = await req.json().catch(() => null);
