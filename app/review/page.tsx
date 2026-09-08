@@ -29,6 +29,7 @@ export default function ReviewPage() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [bulkCategoryId, setBulkCategoryId] = useState<string>("");
+  const [addFormOpen, setAddFormOpen] = useState(false);
 
   const loadCategories = useCallback(async () => {
     const res = await fetch("/api/categories");
@@ -164,7 +165,13 @@ export default function ReviewPage() {
             {f === "unconfirmed" ? "Needs review" : f === "confirmed" ? "Confirmed" : "All"}
           </button>
         ))}
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-4">
+          <button
+            onClick={() => setAddFormOpen((v) => !v)}
+            className="text-sm font-medium text-zinc-600 underline underline-offset-2 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+          >
+            {addFormOpen ? "Cancel" : "+ Add transaction"}
+          </button>
           <Link
             href="/categories"
             className="text-sm font-medium text-zinc-600 underline underline-offset-2 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
@@ -173,6 +180,16 @@ export default function ReviewPage() {
           </Link>
         </div>
       </div>
+
+      {addFormOpen && (
+        <AddTransactionForm
+          categories={categories}
+          onAddCategory={addCategory}
+          onCreated={() => {
+            loadTransactions();
+          }}
+        />
+      )}
 
       {selected.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-300 bg-zinc-100 p-3 text-sm dark:border-zinc-700 dark:bg-zinc-900">
@@ -293,6 +310,202 @@ export default function ReviewPage() {
         ))}
       </datalist>
     </main>
+  );
+}
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function AddTransactionForm({
+  categories,
+  onAddCategory,
+  onCreated,
+}: {
+  categories: Category[];
+  onAddCategory: (name: string, kind: CategoryKind) => Promise<Category | null>;
+  onCreated: () => void;
+}) {
+  const [draft, setDraft] = useState<TxRow>({
+    id: 0,
+    date: todayIso(),
+    description: "",
+    amount: -1, // sign only, used by CategoryPicker's default-kind guess
+    category_id: null,
+    category_name: null,
+    category_kind: null,
+    party: "Me",
+    party_role: "owner",
+    confirmed: 0,
+  });
+  const [amountText, setAmountText] = useState("");
+  const [confirmNow, setConfirmNow] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  function patchDraft(patch: Partial<TxRow>) {
+    setDraft((d) => ({ ...d, ...patch }));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+
+    const magnitude = parseFloat(amountText);
+    if (!draft.date) {
+      setError("Date is required");
+      return;
+    }
+    if (!draft.description.trim()) {
+      setError("Description is required");
+      return;
+    }
+    if (!Number.isFinite(magnitude) || magnitude <= 0) {
+      setError("Enter an amount greater than 0");
+      return;
+    }
+    if (draft.party_role !== "owner" && !draft.party.trim()) {
+      setError("Person's name is required for this whose-money option");
+      return;
+    }
+
+    const amount = draft.amount < 0 ? -Math.abs(magnitude) : Math.abs(magnitude);
+
+    setSaving(true);
+    const res = await fetch("/api/transactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        date: draft.date,
+        description: draft.description.trim(),
+        amount,
+        category_id: draft.category_id,
+        party: draft.party,
+        party_role: draft.party_role,
+        confirmed: confirmNow,
+      }),
+    });
+    setSaving(false);
+
+    if (res.ok) {
+      onCreated();
+      // Reset for adding another, but keep the date/direction — the common
+      // case is entering several transactions from the same day in a row.
+      setDraft((d) => ({
+        ...d,
+        description: "",
+        category_id: null,
+        party_role: "owner",
+        party: "Me",
+      }));
+      setAmountText("");
+    } else {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || "Could not add transaction");
+    }
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      {error && (
+        <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+          {error}
+        </div>
+      )}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium uppercase tracking-wide text-zinc-500">Date</label>
+          <input
+            type="date"
+            value={draft.date}
+            onChange={(e) => patchDraft({ date: e.target.value })}
+            className="rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+            Description
+          </label>
+          <input
+            type="text"
+            placeholder="e.g. Tesco, Rent, Dinner with Sam"
+            value={draft.description}
+            onChange={(e) => patchDraft({ description: e.target.value })}
+            className="rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium uppercase tracking-wide text-zinc-500">Amount</label>
+          <div className="flex gap-2">
+            <div className="flex overflow-hidden rounded-md border border-zinc-300 dark:border-zinc-700">
+              <button
+                type="button"
+                onClick={() => patchDraft({ amount: -1 })}
+                className={`px-3 py-1.5 text-sm font-medium ${
+                  draft.amount < 0
+                    ? "bg-red-600 text-white"
+                    : "bg-white text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400"
+                }`}
+              >
+                − Out
+              </button>
+              <button
+                type="button"
+                onClick={() => patchDraft({ amount: 1 })}
+                className={`px-3 py-1.5 text-sm font-medium ${
+                  draft.amount > 0
+                    ? "bg-green-600 text-white"
+                    : "bg-white text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400"
+                }`}
+              >
+                + In
+              </button>
+            </div>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+              value={amountText}
+              onChange={(e) => setAmountText(e.target.value)}
+              className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            />
+          </div>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+            Category
+          </label>
+          <CategoryPicker t={draft} categories={categories} onPatch={patchDraft} onAddCategory={onAddCategory} />
+        </div>
+        <div className="flex flex-col gap-1 sm:col-span-2">
+          <label className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+            Whose money
+          </label>
+          <WhoseMoneyPicker t={draft} categories={categories} onPatch={patchDraft} onAddCategory={onAddCategory} />
+        </div>
+      </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+          <input
+            type="checkbox"
+            checked={confirmNow}
+            onChange={(e) => setConfirmNow(e.target.checked)}
+          />
+          Confirm immediately (counts toward totals right away)
+        </label>
+        <button
+          type="submit"
+          disabled={saving}
+          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black"
+        >
+          {saving ? "Adding…" : "Add transaction"}
+        </button>
+      </div>
+    </form>
   );
 }
 

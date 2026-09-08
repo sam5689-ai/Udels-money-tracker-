@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { LibsqlError } from "@libsql/client";
 import { getDb, rowsOf } from "@/lib/db";
+import { dedupeHash } from "@/lib/hash";
 import { PartyRole } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -102,4 +104,69 @@ export async function PATCH(req: NextRequest) {
   });
 
   return NextResponse.json({ updated: rs.rowsAffected });
+}
+
+export async function POST(req: NextRequest) {
+  const db = await getDb();
+  const body = await req.json();
+
+  const date = typeof body.date === "string" ? body.date : "";
+  const description = typeof body.description === "string" ? body.description.trim() : "";
+  const amount = typeof body.amount === "number" ? body.amount : NaN;
+  const categoryId = body.category_id != null ? Number(body.category_id) : null;
+  const partyRole: PartyRole = VALID_ROLES.includes(body.party_role) ? body.party_role : "owner";
+  const rawParty = typeof body.party === "string" ? body.party.trim() : "";
+  const confirmed = body.confirmed ? 1 : 0;
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return NextResponse.json({ error: "A valid date is required" }, { status: 400 });
+  }
+  if (!description) {
+    return NextResponse.json({ error: "Description is required" }, { status: 400 });
+  }
+  if (!Number.isFinite(amount) || amount === 0) {
+    return NextResponse.json({ error: "A non-zero amount is required" }, { status: 400 });
+  }
+  if (partyRole !== "owner" && !rawParty) {
+    return NextResponse.json({ error: "Person's name is required for this whose-money option" }, { status: 400 });
+  }
+
+  const party = rawParty || "Me";
+
+  const hash = dedupeHash(date, description, amount);
+
+  try {
+    const insert = await db.execute({
+      sql: `INSERT INTO transactions
+              (upload_id, date, description, amount, category_id, party, party_role, confirmed, confirmed_at, dedupe_hash)
+            VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        date,
+        description,
+        amount,
+        categoryId,
+        party,
+        partyRole,
+        confirmed,
+        confirmed ? new Date().toISOString() : null,
+        hash,
+      ],
+    });
+
+    const rs = await db.execute({
+      sql: `SELECT t.*, c.name as category_name, c.kind as category_kind
+            FROM transactions t LEFT JOIN categories c ON c.id = t.category_id
+            WHERE t.id = ?`,
+      args: [Number(insert.lastInsertRowid)],
+    });
+    return NextResponse.json({ transaction: rowsOf(rs)[0] ?? null }, { status: 201 });
+  } catch (err) {
+    if (err instanceof LibsqlError && err.code === "SQLITE_CONSTRAINT") {
+      return NextResponse.json(
+        { error: "A transaction with this exact date, description, and amount already exists." },
+        { status: 409 }
+      );
+    }
+    throw err;
+  }
 }
