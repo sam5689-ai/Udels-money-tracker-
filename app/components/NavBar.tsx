@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -13,6 +14,7 @@ const LINKS = [
 
 export default function NavBar() {
   const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   if (pathname === "/login") return null;
 
@@ -27,11 +29,12 @@ export default function NavBar() {
 
   return (
     <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-        <Link href="/" className="text-lg font-semibold tracking-tight">
+      <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
+        <Link href="/" className="text-lg font-semibold tracking-tight" onClick={() => setMenuOpen(false)}>
           Udel&apos;s Money Tracker
         </Link>
-        <nav className="flex items-center gap-1">
+
+        <nav className="hidden items-center gap-1 md:flex">
           {LINKS.map((link) => {
             const active = pathname === link.href;
             return (
@@ -55,7 +58,52 @@ export default function NavBar() {
             Log out
           </button>
         </nav>
+
+        <button
+          onClick={() => setMenuOpen((v) => !v)}
+          aria-label={menuOpen ? "Close menu" : "Open menu"}
+          aria-expanded={menuOpen}
+          className="flex h-10 w-10 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100 md:hidden dark:text-zinc-400 dark:hover:bg-zinc-900"
+        >
+          {menuOpen ? (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-6 w-6">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-6 w-6">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          )}
+        </button>
       </div>
+
+      {menuOpen && (
+        <nav className="flex flex-col gap-1 border-t border-zinc-200 px-4 py-3 md:hidden dark:border-zinc-800">
+          {LINKS.map((link) => {
+            const active = pathname === link.href;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setMenuOpen(false)}
+                className={`rounded-md px-3 py-2.5 text-base font-medium ${
+                  active
+                    ? "bg-zinc-900 text-white dark:bg-white dark:text-black"
+                    : "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                }`}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
+          <button
+            onClick={handleLogout}
+            className="rounded-md px-3 py-2.5 text-left text-base font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900"
+          >
+            Log out
+          </button>
+        </nav>
+      )}
     </header>
   );
 }

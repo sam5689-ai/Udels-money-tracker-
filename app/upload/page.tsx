@@ -88,7 +88,7 @@ export default function UploadPage() {
   );
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-12">
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-12">
       <div>
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
           Upload bank statements
@@ -176,8 +176,8 @@ export default function UploadPage() {
           <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
             Upload history
           </h2>
-          <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+            <table className="w-full min-w-[420px] text-sm">
               <thead className="bg-zinc-100 text-left text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
                 <tr>
                   <th className="px-4 py-2 font-medium">File</th>
@@ -189,8 +189,8 @@ export default function UploadPage() {
               <tbody>
                 {uploads.map((u) => (
                   <tr key={u.id} className="border-t border-zinc-200 dark:border-zinc-800">
-                    <td className="px-4 py-2">{u.filename}</td>
-                    <td className="px-4 py-2 text-zinc-500">
+                    <td className="max-w-[160px] truncate px-4 py-2">{u.filename}</td>
+                    <td className="whitespace-nowrap px-4 py-2 text-zinc-500">
                       {new Date(u.uploaded_at + "Z").toLocaleString()}
                     </td>
                     <td className="px-4 py-2 text-right">{u.imported_count}</td>

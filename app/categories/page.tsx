@@ -93,7 +93,7 @@ export default function CategoriesPage() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
       <div>
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
           Manage categories
@@ -106,35 +106,61 @@ export default function CategoriesPage() {
 
       <form
         onSubmit={createCategory}
-        className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950"
+        className="flex flex-col gap-2 rounded-lg border border-zinc-200 bg-white p-3 sm:flex-row sm:flex-wrap sm:items-center dark:border-zinc-800 dark:bg-zinc-950"
       >
         <input
           type="text"
           placeholder="New category name"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-          className="rounded-md border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
         />
-        <select
-          value={newKind}
-          onChange={(e) => setNewKind(e.target.value as CategoryKind)}
-          className="rounded-md border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-        >
-          <option value="income">Income</option>
-          <option value="expense">Expense</option>
-          <option value="loan">Loan</option>
-        </select>
-        <button
-          type="submit"
-          disabled={creating || !newName.trim()}
-          className="rounded-md bg-zinc-900 px-3 py-1 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-black"
-        >
-          {creating ? "Adding…" : "+ Add category"}
-        </button>
+        <div className="flex items-center gap-2">
+          <select
+            value={newKind}
+            onChange={(e) => setNewKind(e.target.value as CategoryKind)}
+            className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          >
+            <option value="income">Income</option>
+            <option value="expense">Expense</option>
+            <option value="loan">Loan</option>
+          </select>
+          <button
+            type="submit"
+            disabled={creating || !newName.trim()}
+            className="flex-1 rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none dark:bg-white dark:text-black"
+          >
+            {creating ? "Adding…" : "+ Add category"}
+          </button>
+        </div>
         {error && <span className="text-sm text-red-600 dark:text-red-400">{error}</span>}
       </form>
 
-      <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
+      {/* Mobile: cards */}
+      <div className="flex flex-col gap-3 md:hidden">
+        {categories.map((c) => (
+          <CategoryCard
+            key={`${c.id}:${c.name}`}
+            category={c}
+            onRename={(name) => renameCategory(c.id, name)}
+            onChangeKind={(kind) => changeKind(c.id, kind)}
+            onDelete={() => deleteCategory(c)}
+          />
+        ))}
+        {!loading && categories.length === 0 && (
+          <div className="rounded-lg border border-zinc-200 px-4 py-10 text-center text-sm text-zinc-500 dark:border-zinc-800">
+            No categories yet.
+          </div>
+        )}
+        {loading && (
+          <div className="rounded-lg border border-zinc-200 px-4 py-10 text-center text-sm text-zinc-500 dark:border-zinc-800">
+            Loading…
+          </div>
+        )}
+      </div>
+
+      {/* Desktop: table */}
+      <div className="hidden overflow-hidden rounded-lg border border-zinc-200 md:block dark:border-zinc-800">
         <table className="w-full text-sm">
           <thead className="bg-zinc-100 text-left text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
             <tr>
@@ -165,17 +191,14 @@ export default function CategoriesPage() {
   );
 }
 
-function CategoryRowItem({
-  category,
-  onRename,
-  onChangeKind,
-  onDelete,
-}: {
+interface CategoryItemProps {
   category: CategoryRow;
   onRename: (name: string) => void;
   onChangeKind: (kind: CategoryKind) => void;
   onDelete: () => void;
-}) {
+}
+
+function CategoryRowItem({ category, onRename, onChangeKind, onDelete }: CategoryItemProps) {
   // No effect needed to resync after a rename resolves — the parent keys
   // this component on `${id}:${name}`, so a name change simply remounts it
   // with the new value as the initial state.
@@ -229,5 +252,55 @@ function CategoryRowItem({
         </button>
       </td>
     </tr>
+  );
+}
+
+function CategoryCard({ category, onRename, onChangeKind, onDelete }: CategoryItemProps) {
+  const [name, setName] = useState(category.name);
+
+  function commitName() {
+    const trimmed = name.trim();
+    if (trimmed && trimmed !== category.name) {
+      onRename(trimmed);
+    } else {
+      setName(category.name);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+      <input
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onBlur={commitName}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        }}
+        className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-medium dark:border-zinc-700 dark:bg-zinc-900"
+      />
+      <div className="flex items-center justify-between gap-2">
+        <select
+          value={category.kind}
+          onChange={(e) => onChangeKind(e.target.value as CategoryKind)}
+          className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+        >
+          <option value="income">Income</option>
+          <option value="expense">Expense</option>
+          <option value="loan">Loan</option>
+        </select>
+        <span className="text-xs text-zinc-500">
+          {category.usage_count > 0
+            ? `${category.usage_count} transaction${category.usage_count === 1 ? "" : "s"}`
+            : "Unused"}
+        </span>
+        <button
+          onClick={onDelete}
+          className="text-xs font-medium text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
   );
 }

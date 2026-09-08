@@ -51,7 +51,7 @@ export default function DashboardPage() {
 
   if (!summary) {
     return (
-      <main className="mx-auto flex w-full max-w-5xl flex-1 items-center justify-center px-6 py-12 text-sm text-zinc-500">
+      <main className="mx-auto flex w-full max-w-5xl flex-1 items-center justify-center px-4 py-12 text-sm text-zinc-500 sm:px-6">
         Loading…
       </main>
     );
@@ -68,19 +68,19 @@ export default function DashboardPage() {
     .sort((a, b) => b.total - a.total);
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-6 py-10">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Dashboard</h1>
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
             {summary.range.from} to {summary.range.to} · confirmed transactions only
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           {summary.unconfirmedCount > 0 && (
             <Link
               href="/review"
-              className="rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm text-amber-900 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+              className="rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-center text-sm text-amber-900 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
             >
               {summary.unconfirmedCount} transaction{summary.unconfirmedCount === 1 ? "" : "s"} still
               need review
@@ -88,7 +88,7 @@ export default function DashboardPage() {
           )}
           <a
             href={`/api/export?from=${summary.range.from}&to=${summary.range.to}`}
-            className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+            className="rounded-md bg-zinc-900 px-3 py-1.5 text-center text-sm font-medium text-white hover:bg-zinc-700 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
           >
             Download report (.xlsx)
           </a>
@@ -105,7 +105,7 @@ export default function DashboardPage() {
         />
       </div>
 
-      <section className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+      <section className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-800 dark:bg-zinc-950">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
           Income vs. expenses by month
         </h2>
@@ -139,7 +139,7 @@ export default function DashboardPage() {
         )}
       </section>
 
-      <section className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+      <section className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-800 dark:bg-zinc-950">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
             By category
@@ -198,11 +198,39 @@ export default function DashboardPage() {
       </section>
 
       {summary.loans.length > 0 && (
-        <section className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+        <section className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-800 dark:bg-zinc-950">
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
             Loans &amp; IOUs
           </h2>
-          <table className="w-full text-sm">
+          {/* Mobile: cards */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {summary.loans.map((l) => (
+              <div
+                key={l.party}
+                className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-zinc-900 dark:text-zinc-50">{l.party}</span>
+                  <span
+                    className="text-sm font-semibold"
+                    style={{
+                      color:
+                        l.net >= 0 ? (isDark ? DELTA.good.dark : DELTA.good.light) : (isDark ? DELTA.bad.dark : DELTA.bad.light),
+                    }}
+                  >
+                    {l.net >= 0 ? `Owes you ${currency(l.net)}` : `You owe ${currency(-l.net)}`}
+                  </span>
+                </div>
+                <div className="mt-1 flex gap-4 text-xs text-zinc-500">
+                  <span>You owe them: {currency(l.youOweThem)}</span>
+                  <span>They owe you: {currency(l.theyOweYou)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop: table */}
+          <table className="hidden w-full text-sm md:table">
             <thead className="text-left text-zinc-500">
               <tr>
                 <th className="pb-2 font-medium">Person</th>
@@ -239,7 +267,7 @@ export default function DashboardPage() {
 
 function StatTile({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+    <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-800 dark:bg-zinc-950">
       <div className="text-sm font-medium text-zinc-500">{label}</div>
       <div className="mt-1 text-2xl font-semibold" style={{ color }}>
         {currency(value)}
