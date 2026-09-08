@@ -16,14 +16,34 @@ import {
 import { useIsDark } from "@/app/hooks/useIsDark";
 import { CATEGORICAL, DIVERGING, INK, DELTA, stableIndex } from "@/lib/palette";
 
+interface BucketTransaction {
+  id: number;
+  date: string;
+  description: string;
+  amount: number;
+  category: string | null;
+}
+
+interface Bucket {
+  total: number;
+  transactions: BucketTransaction[];
+}
+
 interface Summary {
   range: { from: string; to: string };
   totals: { income: number; expenses: number; net: number };
+  buckets: {
+    spending: Bucket;
+    lentOut: Bucket;
+    everythingElse: Bucket;
+  };
   monthly: { month: string; income: number; expenses: number; net: number }[];
   byCategory: { category: string; kind: string; total: number }[];
   loans: { party: string; youOweThem: number; theyOweYou: number; net: number }[];
   unconfirmedCount: number;
 }
+
+type BucketKey = "spending" | "lentOut" | "everythingElse";
 
 function currency(n: number): string {
   const sign = n < 0 ? "-" : "";
@@ -41,6 +61,7 @@ function monthLabel(m: string): string {
 export default function DashboardPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [categoryTab, setCategoryTab] = useState<"expense" | "income">("expense");
+  const [expandedBucket, setExpandedBucket] = useState<BucketKey | null>(null);
   const isDark = useIsDark();
 
   useEffect(() => {
@@ -96,14 +117,45 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatTile label="Income" value={summary.totals.income} color={incomeColor} />
-        <StatTile label="Expenses" value={summary.totals.expenses} color={expenseColor} />
-        <StatTile
-          label="Net"
-          value={summary.totals.net}
-          color={summary.totals.net >= 0 ? (isDark ? DELTA.good.dark : DELTA.good.light) : (isDark ? DELTA.bad.dark : DELTA.bad.light)}
+        <BucketTile
+          label="My spending"
+          hint="Your own expenses — no one else involved"
+          value={summary.buckets.spending.total}
+          color={expenseColor}
+          active={expandedBucket === "spending"}
+          onClick={() => setExpandedBucket((k) => (k === "spending" ? null : "spending"))}
+        />
+        <BucketTile
+          label="Lent out"
+          hint="Owed back to you"
+          value={summary.buckets.lentOut.total}
+          color={incomeColor}
+          active={expandedBucket === "lentOut"}
+          onClick={() => setExpandedBucket((k) => (k === "lentOut" ? null : "lentOut"))}
+        />
+        <BucketTile
+          label="Everything else"
+          hint="Income, borrowed money, repayments"
+          value={summary.buckets.everythingElse.total}
+          color={secondaryInk}
+          active={expandedBucket === "everythingElse"}
+          onClick={() => setExpandedBucket((k) => (k === "everythingElse" ? null : "everythingElse"))}
         />
       </div>
+
+      {expandedBucket && (
+        <BucketDetail
+          label={
+            expandedBucket === "spending"
+              ? "My spending"
+              : expandedBucket === "lentOut"
+                ? "Lent out"
+                : "Everything else"
+          }
+          bucket={summary.buckets[expandedBucket]}
+          onClose={() => setExpandedBucket(null)}
+        />
+      )}
 
       <section className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-800 dark:bg-zinc-950">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
@@ -265,14 +317,88 @@ export default function DashboardPage() {
   );
 }
 
-function StatTile({ label, value, color }: { label: string; value: number; color: string }) {
+function BucketTile({
+  label,
+  hint,
+  value,
+  color,
+  active,
+  onClick,
+}: {
+  label: string;
+  hint: string;
+  value: number;
+  color: string;
+  active: boolean;
+  onClick: () => void;
+}) {
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-800 dark:bg-zinc-950">
+    <button
+      onClick={onClick}
+      className={`rounded-xl border bg-white p-4 text-left transition-colors sm:p-5 dark:bg-zinc-950 ${
+        active
+          ? "border-zinc-900 ring-1 ring-zinc-900 dark:border-white dark:ring-white"
+          : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700"
+      }`}
+    >
       <div className="text-sm font-medium text-zinc-500">{label}</div>
       <div className="mt-1 text-2xl font-semibold" style={{ color }}>
         {currency(value)}
       </div>
-    </div>
+      <div className="mt-1 text-xs text-zinc-500">{hint} · tap to see transactions</div>
+    </button>
+  );
+}
+
+function BucketDetail({
+  label,
+  bucket,
+  onClose,
+}: {
+  label: string;
+  bucket: Bucket;
+  onClose: () => void;
+}) {
+  return (
+    <section className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+          {label} — {bucket.transactions.length} transaction{bucket.transactions.length === 1 ? "" : "s"}
+        </h2>
+        <button
+          onClick={onClose}
+          className="text-xs font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+        >
+          Close
+        </button>
+      </div>
+      {bucket.transactions.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <div className="flex flex-col divide-y divide-zinc-200 dark:divide-zinc-800">
+          {bucket.transactions.map((t) => (
+            <div key={t.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+              <div className="min-w-0">
+                <div className="truncate font-medium text-zinc-900 dark:text-zinc-50">
+                  {t.description}
+                </div>
+                <div className="text-xs text-zinc-500">
+                  {t.date}
+                  {t.category ? ` · ${t.category}` : ""}
+                </div>
+              </div>
+              <div
+                className={`whitespace-nowrap font-medium ${
+                  t.amount < 0 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"
+                }`}
+              >
+                {t.amount < 0 ? "-" : "+"}£{Math.abs(t.amount).toFixed(2)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
