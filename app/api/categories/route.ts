@@ -10,7 +10,13 @@ const VALID_KINDS: CategoryKind[] = ["income", "expense", "loan"];
 
 export async function GET() {
   const db = await getDb();
-  const rs = await db.execute(`SELECT * FROM categories ORDER BY kind, sort_order, name`);
+  const rs = await db.execute(`
+    SELECT c.*, COUNT(t.id) as usage_count
+    FROM categories c
+    LEFT JOIN transactions t ON t.category_id = c.id
+    GROUP BY c.id
+    ORDER BY c.kind, c.sort_order, c.name
+  `);
   return NextResponse.json({ categories: rowsOf(rs) });
 }
 

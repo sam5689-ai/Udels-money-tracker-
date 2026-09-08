@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Category, CategoryKind, PartyRole, PARTY_ROLE_LABELS } from "@/lib/types";
 
 interface TxRow {
@@ -27,9 +28,6 @@ export default function ReviewPage() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [newCategoryOpen, setNewCategoryOpen] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState("");
-  const [newCategoryKind, setNewCategoryKind] = useState<"income" | "expense" | "loan">("expense");
   const [bulkCategoryId, setBulkCategoryId] = useState<string>("");
 
   const loadCategories = useCallback(async () => {
@@ -105,16 +103,6 @@ export default function ReviewPage() {
     [loadCategories]
   );
 
-  async function createCategory() {
-    const name = newCategoryName.trim();
-    if (!name) return;
-    const category = await addCategory(name, newCategoryKind);
-    if (category) {
-      setNewCategoryName("");
-      setNewCategoryOpen(false);
-    }
-  }
-
   function toggleSelect(id: number) {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -177,41 +165,14 @@ export default function ReviewPage() {
           </button>
         ))}
         <div className="ml-auto">
-          <button
-            onClick={() => setNewCategoryOpen((v) => !v)}
+          <Link
+            href="/categories"
             className="text-sm font-medium text-zinc-600 underline underline-offset-2 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
           >
-            + New category
-          </button>
+            Manage categories
+          </Link>
         </div>
       </div>
-
-      {newCategoryOpen && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
-          <input
-            type="text"
-            placeholder="Category name"
-            value={newCategoryName}
-            onChange={(e) => setNewCategoryName(e.target.value)}
-            className="rounded-md border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-          />
-          <select
-            value={newCategoryKind}
-            onChange={(e) => setNewCategoryKind(e.target.value as typeof newCategoryKind)}
-            className="rounded-md border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-          >
-            <option value="income">Income</option>
-            <option value="expense">Expense</option>
-            <option value="loan">Loan</option>
-          </select>
-          <button
-            onClick={createCategory}
-            className="rounded-md bg-zinc-900 px-3 py-1 text-sm font-medium text-white dark:bg-white dark:text-black"
-          >
-            Add
-          </button>
-        </div>
-      )}
 
       {selected.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-300 bg-zinc-100 p-3 text-sm dark:border-zinc-700 dark:bg-zinc-900">

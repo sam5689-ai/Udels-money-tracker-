@@ -1,25 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 const LINKS = [
   { href: "/", label: "Home" },
   { href: "/upload", label: "Upload" },
   { href: "/review", label: "Review" },
+  { href: "/categories", label: "Categories" },
   { href: "/dashboard", label: "Dashboard" },
 ];
 
 export default function NavBar() {
   const pathname = usePathname();
-  const router = useRouter();
 
   if (pathname === "/login") return null;
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
-    router.refresh();
+    // Full navigation, not router.push — guarantees the cleared cookie is
+    // in effect for the very next request (see app/login/page.tsx for the
+    // same reasoning on the way in).
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- deliberate, see above
+    window.location.href = "/login";
   }
 
   return (
