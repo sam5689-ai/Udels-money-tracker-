@@ -76,15 +76,23 @@ export default function DashboardPage() {
             {summary.range.from} to {summary.range.to} · confirmed transactions only
           </p>
         </div>
-        {summary.unconfirmedCount > 0 && (
-          <Link
-            href="/review"
-            className="rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm text-amber-900 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+        <div className="flex items-center gap-3">
+          {summary.unconfirmedCount > 0 && (
+            <Link
+              href="/review"
+              className="rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm text-amber-900 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+            >
+              {summary.unconfirmedCount} transaction{summary.unconfirmedCount === 1 ? "" : "s"} still
+              need review
+            </Link>
+          )}
+          <a
+            href={`/api/export?from=${summary.range.from}&to=${summary.range.to}`}
+            className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
           >
-            {summary.unconfirmedCount} transaction{summary.unconfirmedCount === 1 ? "" : "s"} still
-            need review
-          </Link>
-        )}
+            Download report (.xlsx)
+          </a>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
