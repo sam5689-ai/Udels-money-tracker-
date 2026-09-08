@@ -55,15 +55,26 @@ function LoginForm() {
         </p>
       </div>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        {error && (
+          <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm font-medium text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+            {error}
+          </div>
+        )}
         <input
           type="password"
           autoFocus
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            if (error) setError("");
+          }}
           placeholder="Password"
-          className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+          className={`rounded-md border bg-white px-3 py-2 text-sm dark:bg-zinc-950 ${
+            error
+              ? "border-red-400 dark:border-red-700"
+              : "border-zinc-300 dark:border-zinc-700"
+          }`}
         />
-        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
         <button
           type="submit"
           disabled={busy || !password}
