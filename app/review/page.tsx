@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Category, PartyRole, PARTY_ROLE_LABELS } from "@/lib/types";
+import { Category, CategoryKind, PartyRole, PARTY_ROLE_LABELS } from "@/lib/types";
 
 interface TxRow {
   id: number;
@@ -86,20 +86,32 @@ export default function ReviewPage() {
     }
   }
 
+  const addCategory = useCallback(
+    async (name: string, kind: CategoryKind): Promise<Category | null> => {
+      const res = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, kind }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        loadCategories();
+        return data.category;
+      }
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || "Could not create category");
+      return null;
+    },
+    [loadCategories]
+  );
+
   async function createCategory() {
-    if (!newCategoryName.trim()) return;
-    const res = await fetch("/api/categories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newCategoryName.trim(), kind: newCategoryKind }),
-    });
-    if (res.ok) {
+    const name = newCategoryName.trim();
+    if (!name) return;
+    const category = await addCategory(name, newCategoryKind);
+    if (category) {
       setNewCategoryName("");
       setNewCategoryOpen(false);
-      loadCategories();
-    } else {
-      const data = await res.json();
-      alert(data.error || "Could not create category");
     }
   }
 
@@ -257,6 +269,7 @@ export default function ReviewPage() {
                 onToggleSelect={() => toggleSelect(t.id)}
                 onPatch={(patch) => patchTransaction(t.id, patch)}
                 onConfirm={() => confirmRow(t)}
+                onAddCategory={addCategory}
                 canConfirm={canConfirm(t)}
               />
             ))}
@@ -287,6 +300,7 @@ function Row({
   onToggleSelect,
   onPatch,
   onConfirm,
+  onAddCategory,
   canConfirm,
 }: {
   t: TxRow;
@@ -295,9 +309,32 @@ function Row({
   onToggleSelect: () => void;
   onPatch: (patch: Partial<TxRow>) => void;
   onConfirm: () => void;
+  onAddCategory: (name: string, kind: CategoryKind) => Promise<Category | null>;
   canConfirm: boolean;
 }) {
   const isExpense = t.amount < 0;
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
+  const [newCatKind, setNewCatKind] = useState<CategoryKind>(isExpense ? "expense" : "income");
+  const [savingCategory, setSavingCategory] = useState(false);
+
+  async function confirmNewCategory() {
+    const name = newCatName.trim();
+    if (!name) return;
+    setSavingCategory(true);
+    const category = await onAddCategory(name, newCatKind);
+    setSavingCategory(false);
+    if (category) {
+      onPatch({ category_id: category.id });
+      setAddingCategory(false);
+      setNewCatName("");
+    }
+  }
+
+  function cancelNewCategory() {
+    setAddingCategory(false);
+    setNewCatName("");
+  }
 
   return (
     <tr className="border-t border-zinc-200 align-top dark:border-zinc-800">
@@ -314,18 +351,70 @@ function Row({
         {isExpense ? "-" : "+"}£{Math.abs(t.amount).toFixed(2)}
       </td>
       <td className="px-3 py-2">
-        <select
-          value={t.category_id ?? ""}
-          onChange={(e) => onPatch({ category_id: e.target.value ? Number(e.target.value) : null })}
-          className="w-40 rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-950"
-        >
-          <option value="">Select…</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+        {addingCategory ? (
+          <div className="flex w-44 flex-col gap-1">
+            <input
+              autoFocus
+              type="text"
+              placeholder="New category name"
+              value={newCatName}
+              onChange={(e) => setNewCatName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  confirmNewCategory();
+                } else if (e.key === "Escape") {
+                  cancelNewCategory();
+                }
+              }}
+              className="rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-950"
+            />
+            <div className="flex items-center gap-1">
+              <select
+                value={newCatKind}
+                onChange={(e) => setNewCatKind(e.target.value as CategoryKind)}
+                className="rounded-md border border-zinc-300 bg-white px-1 py-0.5 text-xs dark:border-zinc-700 dark:bg-zinc-950"
+              >
+                <option value="income">Income</option>
+                <option value="expense">Expense</option>
+                <option value="loan">Loan</option>
+              </select>
+              <button
+                onClick={confirmNewCategory}
+                disabled={!newCatName.trim() || savingCategory}
+                className="rounded-md bg-zinc-900 px-2 py-0.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-black"
+              >
+                {savingCategory ? "Adding…" : "Add"}
+              </button>
+              <button
+                onClick={cancelNewCategory}
+                className="text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <select
+            value={t.category_id ?? ""}
+            onChange={(e) => {
+              if (e.target.value === "__new__") {
+                setAddingCategory(true);
+                return;
+              }
+              onPatch({ category_id: e.target.value ? Number(e.target.value) : null });
+            }}
+            className="w-40 rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-950"
+          >
+            <option value="">Select…</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+            <option value="__new__">+ Add new category…</option>
+          </select>
+        )}
       </td>
       <td className="px-3 py-2">
         <div className="flex flex-col gap-1">
