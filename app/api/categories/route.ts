@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { LibsqlError } from "@libsql/client";
+import { getDb, rowsOf } from "@/lib/db";
 import { CategoryKind } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -8,15 +9,13 @@ export const dynamic = "force-dynamic";
 const VALID_KINDS: CategoryKind[] = ["income", "expense", "loan"];
 
 export async function GET() {
-  const db = getDb();
-  const categories = db
-    .prepare(`SELECT * FROM categories ORDER BY kind, sort_order, name`)
-    .all();
-  return NextResponse.json({ categories });
+  const db = await getDb();
+  const rs = await db.execute(`SELECT * FROM categories ORDER BY kind, sort_order, name`);
+  return NextResponse.json({ categories: rowsOf(rs) });
 }
 
 export async function POST(req: NextRequest) {
-  const db = getDb();
+  const db = await getDb();
   const body = await req.json();
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const kind = body.kind as CategoryKind;
@@ -29,13 +28,17 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const info = db
-      .prepare(`INSERT INTO categories (name, kind, sort_order) VALUES (?, ?, 100)`)
-      .run(name, kind);
-    const category = db.prepare(`SELECT * FROM categories WHERE id = ?`).get(info.lastInsertRowid);
-    return NextResponse.json({ category }, { status: 201 });
+    const insert = await db.execute({
+      sql: `INSERT INTO categories (name, kind, sort_order) VALUES (?, ?, 100)`,
+      args: [name, kind],
+    });
+    const rs = await db.execute({
+      sql: `SELECT * FROM categories WHERE id = ?`,
+      args: [Number(insert.lastInsertRowid)],
+    });
+    return NextResponse.json({ category: rowsOf(rs)[0] ?? null }, { status: 201 });
   } catch (err) {
-    if (err instanceof Error && err.message.includes("UNIQUE")) {
+    if (err instanceof LibsqlError && err.code === "SQLITE_CONSTRAINT") {
       return NextResponse.json({ error: "A category with this name already exists" }, { status: 409 });
     }
     throw err;

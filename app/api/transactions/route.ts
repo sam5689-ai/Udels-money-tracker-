@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getDb, rowsOf } from "@/lib/db";
 import { PartyRole } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 const VALID_ROLES: PartyRole[] = ["owner", "borrowed_from", "lent_to", "repaid_to", "repaid_by"];
 
 export async function GET(req: NextRequest) {
-  const db = getDb();
+  const db = await getDb();
   const { searchParams } = new URL(req.url);
   const confirmed = searchParams.get("confirmed");
   const from = searchParams.get("from");
@@ -16,42 +16,41 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get("search");
 
   const clauses: string[] = [];
-  const params: Record<string, unknown> = {};
+  const args: (string | number)[] = [];
 
   if (confirmed === "0" || confirmed === "1") {
-    clauses.push("t.confirmed = @confirmed");
-    params.confirmed = Number(confirmed);
+    clauses.push("t.confirmed = ?");
+    args.push(Number(confirmed));
   }
   if (from) {
-    clauses.push("t.date >= @from");
-    params.from = from;
+    clauses.push("t.date >= ?");
+    args.push(from);
   }
   if (to) {
-    clauses.push("t.date <= @to");
-    params.to = to;
+    clauses.push("t.date <= ?");
+    args.push(to);
   }
   if (search) {
-    clauses.push("t.description LIKE @search");
-    params.search = `%${search}%`;
+    clauses.push("t.description LIKE ?");
+    args.push(`%${search}%`);
   }
 
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
 
-  const rows = db
-    .prepare(
-      `SELECT t.*, c.name as category_name, c.kind as category_kind
-       FROM transactions t
-       LEFT JOIN categories c ON c.id = t.category_id
-       ${where}
-       ORDER BY t.date DESC, t.id DESC`
-    )
-    .all(params);
+  const rs = await db.execute({
+    sql: `SELECT t.*, c.name as category_name, c.kind as category_kind
+          FROM transactions t
+          LEFT JOIN categories c ON c.id = t.category_id
+          ${where}
+          ORDER BY t.date DESC, t.id DESC`,
+    args,
+  });
 
-  return NextResponse.json({ transactions: rows });
+  return NextResponse.json({ transactions: rowsOf(rs) });
 }
 
 export async function PATCH(req: NextRequest) {
-  const db = getDb();
+  const db = await getDb();
   const body = await req.json();
   const { ids, patch } = body as {
     ids: number[];
@@ -71,38 +70,36 @@ export async function PATCH(req: NextRequest) {
   }
 
   const sets: string[] = [];
-  const params: Record<string, unknown> = {};
+  const args: (string | number | null)[] = [];
 
   if ("category_id" in patch) {
-    sets.push("category_id = @category_id");
-    params.category_id = patch.category_id;
+    sets.push("category_id = ?");
+    args.push(patch.category_id ?? null);
   }
   if ("party" in patch && typeof patch.party === "string") {
-    sets.push("party = @party");
-    params.party = patch.party.trim() || "Me";
+    sets.push("party = ?");
+    args.push(patch.party.trim() || "Me");
   }
   if ("party_role" in patch && patch.party_role) {
-    sets.push("party_role = @party_role");
-    params.party_role = patch.party_role;
+    sets.push("party_role = ?");
+    args.push(patch.party_role);
   }
   if ("confirmed" in patch) {
-    sets.push("confirmed = @confirmed");
-    params.confirmed = patch.confirmed ? 1 : 0;
-    sets.push("confirmed_at = @confirmed_at");
-    params.confirmed_at = patch.confirmed ? new Date().toISOString() : null;
+    sets.push("confirmed = ?");
+    args.push(patch.confirmed ? 1 : 0);
+    sets.push("confirmed_at = ?");
+    args.push(patch.confirmed ? new Date().toISOString() : null);
   }
 
   if (sets.length === 0) {
     return NextResponse.json({ error: "No fields to update" }, { status: 400 });
   }
 
-  const placeholders = ids.map((_, i) => `@id${i}`).join(",");
-  ids.forEach((id, i) => (params[`id${i}`] = id));
+  const placeholders = ids.map(() => "?").join(",");
+  const rs = await db.execute({
+    sql: `UPDATE transactions SET ${sets.join(", ")} WHERE id IN (${placeholders})`,
+    args: [...args, ...ids],
+  });
 
-  const stmt = db.prepare(
-    `UPDATE transactions SET ${sets.join(", ")} WHERE id IN (${placeholders})`
-  );
-  const info = stmt.run(params);
-
-  return NextResponse.json({ updated: info.changes });
+  return NextResponse.json({ updated: rs.rowsAffected });
 }

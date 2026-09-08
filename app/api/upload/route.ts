@@ -51,45 +51,44 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const db = getDb();
+  const db = await getDb();
 
-  const insertUpload = db.prepare(
-    `INSERT INTO uploads (filename, row_count) VALUES (?, ?)`
+  const uploadInfo = await db.execute({
+    sql: `INSERT INTO uploads (filename, row_count) VALUES (?, ?)`,
+    args: [file.name, result.rows.length],
+  });
+  const uploadId = Number(uploadInfo.lastInsertRowid);
+
+  const insertResults = await db.batch(
+    result.rows.map((row) => ({
+      sql: `
+        INSERT INTO transactions (upload_id, date, description, amount, dedupe_hash, raw_row)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(dedupe_hash) DO NOTHING
+      `,
+      args: [
+        uploadId,
+        row.date,
+        row.description,
+        row.amount,
+        dedupeHash(row.date, row.description, row.amount),
+        JSON.stringify(row.raw),
+      ],
+    })),
+    "write"
   );
-  const insertTx = db.prepare(`
-    INSERT INTO transactions (upload_id, date, description, amount, dedupe_hash, raw_row)
-    VALUES (@upload_id, @date, @description, @amount, @dedupe_hash, @raw_row)
-    ON CONFLICT(dedupe_hash) DO NOTHING
-  `);
-
-  const uploadInfo = insertUpload.run(file.name, result.rows.length);
-  const uploadId = uploadInfo.lastInsertRowid as number;
 
   let imported = 0;
   let duplicates = 0;
+  for (const r of insertResults) {
+    if (r.rowsAffected > 0) imported++;
+    else duplicates++;
+  }
 
-  const insertAll = db.transaction(() => {
-    for (const row of result.rows) {
-      const hash = dedupeHash(row.date, row.description, row.amount);
-      const info = insertTx.run({
-        upload_id: uploadId,
-        date: row.date,
-        description: row.description,
-        amount: row.amount,
-        dedupe_hash: hash,
-        raw_row: JSON.stringify(row.raw),
-      });
-      if (info.changes > 0) imported++;
-      else duplicates++;
-    }
+  await db.execute({
+    sql: `UPDATE uploads SET imported_count = ?, duplicate_count = ? WHERE id = ?`,
+    args: [imported, duplicates, uploadId],
   });
-  insertAll();
-
-  db.prepare(`UPDATE uploads SET imported_count = ?, duplicate_count = ? WHERE id = ?`).run(
-    imported,
-    duplicates,
-    uploadId
-  );
 
   return NextResponse.json({
     uploadId,

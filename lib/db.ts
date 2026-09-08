@@ -1,28 +1,29 @@
-import Database from "better-sqlite3";
+import { createClient, type Client, type ResultSet } from "@libsql/client";
 import fs from "fs";
 import path from "path";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const DB_PATH = path.join(DATA_DIR, "app.db");
-
 declare global {
-  var __moneyTrackerDb: Database.Database | undefined;
+  var __moneyTrackerDbPromise: Promise<Client> | undefined;
 }
 
-function createDb(): Database.Database {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+function createDb(): Client {
+  const url = process.env.TURSO_DATABASE_URL;
+  const authToken = process.env.TURSO_AUTH_TOKEN;
+
+  if (url) {
+    return createClient({ url, authToken });
   }
-  const db = new Database(DB_PATH);
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
-  migrate(db);
-  seedCategories(db);
-  return db;
+
+  // Local dev fallback: a plain SQLite file, no Turso account needed.
+  const dataDir = path.join(process.cwd(), "data");
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+  return createClient({ url: `file:${path.join(dataDir, "app.db")}` });
 }
 
-function migrate(db: Database.Database) {
-  db.exec(`
+async function migrate(db: Client) {
+  await db.executeMultiple(`
     CREATE TABLE IF NOT EXISTS categories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
@@ -81,21 +82,38 @@ const DEFAULT_CATEGORIES: { name: string; kind: "income" | "expense" | "loan"; s
   { name: "Loan / Borrowing", kind: "loan", sort: 30 },
 ];
 
-function seedCategories(db: Database.Database) {
-  const count = db.prepare("SELECT COUNT(*) as c FROM categories").get() as { c: number };
-  if (count.c > 0) return;
-  const insert = db.prepare(
-    "INSERT INTO categories (name, kind, sort_order) VALUES (@name, @kind, @sort)"
+async function seedCategories(db: Client) {
+  const count = await db.execute("SELECT COUNT(*) as c FROM categories");
+  if ((count.rows[0].c as number) > 0) return;
+
+  await db.batch(
+    DEFAULT_CATEGORIES.map((row) => ({
+      sql: "INSERT INTO categories (name, kind, sort_order) VALUES (:name, :kind, :sort)",
+      args: { name: row.name, kind: row.kind, sort: row.sort },
+    })),
+    "write"
   );
-  const insertMany = db.transaction((rows: typeof DEFAULT_CATEGORIES) => {
-    for (const row of rows) insert.run(row);
-  });
-  insertMany(DEFAULT_CATEGORIES);
 }
 
-export function getDb(): Database.Database {
-  if (!global.__moneyTrackerDb) {
-    global.__moneyTrackerDb = createDb();
+async function initDb(): Promise<Client> {
+  const db = createDb();
+  await migrate(db);
+  await seedCategories(db);
+  return db;
+}
+
+export function getDb(): Promise<Client> {
+  if (!global.__moneyTrackerDbPromise) {
+    global.__moneyTrackerDbPromise = initDb();
   }
-  return global.__moneyTrackerDb;
+  return global.__moneyTrackerDbPromise;
+}
+
+/** Turns a libSQL ResultSet's rows into plain objects keyed by column name. */
+export function rowsOf<T = Record<string, unknown>>(rs: ResultSet): T[] {
+  return rs.rows.map((row) => {
+    const obj: Record<string, unknown> = {};
+    for (const col of rs.columns) obj[col] = row[col];
+    return obj as T;
+  });
 }

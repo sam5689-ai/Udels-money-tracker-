@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getDb, rowsOf } from "@/lib/db";
 import { PartyRole } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -19,7 +19,7 @@ function monthOf(date: string): string {
 }
 
 export async function GET(req: NextRequest) {
-  const db = getDb();
+  const db = await getDb();
   const { searchParams } = new URL(req.url);
 
   const to = searchParams.get("to") || new Date().toISOString().slice(0, 10);
@@ -32,20 +32,17 @@ export async function GET(req: NextRequest) {
       return d.toISOString().slice(0, 10);
     })();
 
-  const rows = db
-    .prepare(
-      `SELECT t.date, t.amount, t.party, t.party_role, c.kind as category_kind, c.name as category_name
-       FROM transactions t
-       LEFT JOIN categories c ON c.id = t.category_id
-       WHERE t.confirmed = 1 AND t.date >= ? AND t.date <= ?`
-    )
-    .all(from, to) as Row[];
+  const rs = await db.execute({
+    sql: `SELECT t.date, t.amount, t.party, t.party_role, c.kind as category_kind, c.name as category_name
+          FROM transactions t
+          LEFT JOIN categories c ON c.id = t.category_id
+          WHERE t.confirmed = 1 AND t.date >= ? AND t.date <= ?`,
+    args: [from, to],
+  });
+  const rows = rowsOf<Row>(rs);
 
-  const unconfirmedCount = (
-    db.prepare(`SELECT COUNT(*) as c FROM transactions WHERE confirmed = 0`).get() as {
-      c: number;
-    }
-  ).c;
+  const unconfirmedRs = await db.execute(`SELECT COUNT(*) as c FROM transactions WHERE confirmed = 0`);
+  const unconfirmedCount = Number(rowsOf<{ c: number }>(unconfirmedRs)[0].c);
 
   let income = 0;
   let expenses = 0;

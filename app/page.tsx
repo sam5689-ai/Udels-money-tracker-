@@ -1,23 +1,22 @@
 import Link from "next/link";
-import { getDb } from "@/lib/db";
+import { getDb, rowsOf } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-function getStats() {
-  const db = getDb();
-  const unconfirmed = (
-    db.prepare(`SELECT COUNT(*) as c FROM transactions WHERE confirmed = 0`).get() as {
-      c: number;
-    }
-  ).c;
-  const total = (
-    db.prepare(`SELECT COUNT(*) as c FROM transactions`).get() as { c: number }
-  ).c;
-  return { unconfirmed, total };
+async function getStats() {
+  const db = await getDb();
+  const unconfirmedRs = await db.execute(
+    `SELECT COUNT(*) as c FROM transactions WHERE confirmed = 0`
+  );
+  const totalRs = await db.execute(`SELECT COUNT(*) as c FROM transactions`);
+  return {
+    unconfirmed: Number(rowsOf<{ c: number }>(unconfirmedRs)[0].c),
+    total: Number(rowsOf<{ c: number }>(totalRs)[0].c),
+  };
 }
 
-export default function Home() {
-  const { unconfirmed, total } = getStats();
+export default async function Home() {
+  const { unconfirmed, total } = await getStats();
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-6 py-12">
