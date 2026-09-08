@@ -1,7 +1,14 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+
+function safeNext(value: string | null): string {
+  // Only ever follow a same-site relative path, never an absolute/external
+  // URL — `next` comes from a query param an attacker could craft.
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/";
+  return value;
+}
 
 export default function LoginPage() {
   return (
@@ -15,7 +22,6 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -31,9 +37,9 @@ function LoginForm() {
       });
 
       if (res.ok) {
-        const next = searchParams.get("next") || "/";
-        router.push(next);
-        router.refresh();
+        // A full navigation (not router.push) so the browser is guaranteed
+        // to send the just-set cookie on the very next request.
+        window.location.href = safeNext(searchParams.get("next"));
         return;
       }
 
