@@ -54,6 +54,25 @@ this app already uses) via [`@libsql/client`](https://github.com/tursodatabase/l
 Locally, leave those two variables unset and the app keeps using the
 `data/app.db` file — the same `lib/db.ts` code path handles both.
 
+## Access control
+
+This holds real financial data, so the whole app sits behind a single
+shared password (see `proxy.ts`) — there's no per-user accounts, just one
+password gating everything. Set two more environment variables (locally in
+`.env.local`, and in Vercel project settings for production):
+
+- `APP_PASSWORD` — the password you'll type to sign in at `/login`
+- `AUTH_SECRET` — a long random string used to sign the session cookie.
+  Generate one with `openssl rand -base64 32`
+
+Without `AUTH_SECRET` set, the app falls back to a random secret generated
+per-process, which is fine for a one-off local `npm run dev` session but
+means everyone gets logged out on every restart/redeploy — set a real one
+before deploying. Without `APP_PASSWORD` set, sign-in is rejected outright
+(there's nothing to check the password against), so the app is effectively
+locked — that's intentional rather than falling back to "no password
+required".
+
 ## Stack
 
 - [Next.js](https://nextjs.org) (App Router) + TypeScript + Tailwind CSS

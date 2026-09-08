@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 const LINKS = [
   { href: "/", label: "Home" },
@@ -12,6 +12,15 @@ const LINKS = [
 
 export default function NavBar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  if (pathname === "/login") return null;
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black">
@@ -19,7 +28,7 @@ export default function NavBar() {
         <Link href="/" className="text-lg font-semibold tracking-tight">
           Udel&apos;s Money Tracker
         </Link>
-        <nav className="flex gap-1">
+        <nav className="flex items-center gap-1">
           {LINKS.map((link) => {
             const active = pathname === link.href;
             return (
@@ -36,6 +45,12 @@ export default function NavBar() {
               </Link>
             );
           })}
+          <button
+            onClick={handleLogout}
+            className="ml-2 rounded-md px-3 py-1.5 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-900"
+          >
+            Log out
+          </button>
         </nav>
       </div>
     </header>
