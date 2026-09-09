@@ -262,7 +262,12 @@ export default function DashboardPage() {
                 className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800"
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-medium text-zinc-900 dark:text-zinc-50">{l.party}</span>
+                  <Link
+                    href={`/people/${encodeURIComponent(l.party)}`}
+                    className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-50"
+                  >
+                    {l.party}
+                  </Link>
                   <span
                     className="text-sm font-semibold"
                     style={{
@@ -294,7 +299,14 @@ export default function DashboardPage() {
             <tbody>
               {summary.loans.map((l) => (
                 <tr key={l.party} className="border-t border-zinc-200 dark:border-zinc-800">
-                  <td className="py-2 font-medium text-zinc-900 dark:text-zinc-50">{l.party}</td>
+                  <td className="py-2 font-medium text-zinc-900 dark:text-zinc-50">
+                    <Link
+                      href={`/people/${encodeURIComponent(l.party)}`}
+                      className="underline underline-offset-2"
+                    >
+                      {l.party}
+                    </Link>
+                  </td>
                   <td className="py-2 text-right text-zinc-600 dark:text-zinc-400">
                     {currency(l.youOweThem)}
                   </td>
