@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Category, CategoryKind, PartyRole, PARTY_ROLE_LABELS } from "@/lib/types";
+import { Category, CategoryKind, PartyRole } from "@/lib/types";
 
 interface TxRow {
   id: number;
@@ -19,7 +19,23 @@ interface TxRow {
 
 type Filter = "unconfirmed" | "confirmed" | "all";
 
-const ROLE_OPTIONS: PartyRole[] = ["owner", "borrowed_from", "lent_to", "repaid_to", "repaid_by"];
+// The 5 underlying party_role values collapse into 3 relationships in the
+// UI: whether a given transaction is a loan or a repayment is already
+// implied by its amount's sign (money out vs. money in), so there's no
+// need to ask for that separately.
+type MoneyRelationship = "owner" | "owed_to_me" | "owed_by_me";
+
+function relationshipOf(role: PartyRole): MoneyRelationship {
+  if (role === "owner") return "owner";
+  if (role === "lent_to" || role === "repaid_by") return "owed_to_me";
+  return "owed_by_me"; // borrowed_from or repaid_to
+}
+
+function roleForRelationship(relationship: MoneyRelationship, amount: number): PartyRole {
+  if (relationship === "owner") return "owner";
+  if (relationship === "owed_to_me") return amount < 0 ? "lent_to" : "repaid_by";
+  return amount > 0 ? "borrowed_from" : "repaid_to";
+}
 
 export default function ReviewPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -347,6 +363,17 @@ function AddTransactionForm({
     setDraft((d) => ({ ...d, ...patch }));
   }
 
+  function setDirection(amount: number) {
+    setDraft((d) => ({
+      ...d,
+      amount,
+      // Keep the stored role consistent if a relationship is already picked
+      // — flipping Out/In after choosing "They owe me" should still mean
+      // "They owe me", just now expressed as a repayment instead of a loan.
+      party_role: roleForRelationship(relationshipOf(d.party_role), amount),
+    }));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -443,7 +470,7 @@ function AddTransactionForm({
             <div className="flex overflow-hidden rounded-md border border-zinc-300 dark:border-zinc-700">
               <button
                 type="button"
-                onClick={() => patchDraft({ amount: -1 })}
+                onClick={() => setDirection(-1)}
                 className={`px-3 py-1.5 text-sm font-medium ${
                   draft.amount < 0
                     ? "bg-red-600 text-white"
@@ -454,7 +481,7 @@ function AddTransactionForm({
               </button>
               <button
                 type="button"
-                onClick={() => patchDraft({ amount: 1 })}
+                onClick={() => setDirection(1)}
                 className={`px-3 py-1.5 text-sm font-medium ${
                   draft.amount > 0
                     ? "bg-green-600 text-white"
@@ -612,23 +639,24 @@ function CategoryPicker({ t, categories, onPatch, onAddCategory }: PickerProps) 
 }
 
 function WhoseMoneyPicker({ t, onPatch }: PickerProps) {
+  const relationship = relationshipOf(t.party_role);
+
   return (
     <div className="flex flex-col gap-1">
       <select
-        value={t.party_role}
+        value={relationship}
         onChange={(e) => {
-          const role = e.target.value as PartyRole;
-          onPatch({ party_role: role, party: role === "owner" ? "Me" : t.party === "Me" ? "" : t.party });
+          const rel = e.target.value as MoneyRelationship;
+          const role = roleForRelationship(rel, t.amount);
+          onPatch({ party_role: role, party: rel === "owner" ? "Me" : t.party === "Me" ? "" : t.party });
         }}
         className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-950 md:w-48"
       >
-        {ROLE_OPTIONS.map((r) => (
-          <option key={r} value={r}>
-            {PARTY_ROLE_LABELS[r]}
-          </option>
-        ))}
+        <option value="owner">My own money</option>
+        <option value="owed_to_me">They owe me</option>
+        <option value="owed_by_me">I owe them</option>
       </select>
-      {t.party_role !== "owner" && (
+      {relationship !== "owner" && (
         <input
           list="known-parties"
           type="text"
