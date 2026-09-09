@@ -46,11 +46,24 @@ export default function ReviewPage() {
   const [loading, setLoading] = useState(true);
   const [bulkCategoryId, setBulkCategoryId] = useState<string>("");
   const [addFormOpen, setAddFormOpen] = useState(false);
+  const [knownPeople, setKnownPeople] = useState<string[]>([]);
 
   const loadCategories = useCallback(async () => {
     const res = await fetch("/api/categories");
     const data = await res.json();
     setCategories(data.categories);
+  }, []);
+
+  const loadPeople = useCallback(async () => {
+    const res = await fetch("/api/people");
+    const data = await res.json();
+    setKnownPeople(data.people);
+  }, []);
+
+  const addKnownPerson = useCallback((name: string) => {
+    setKnownPeople((prev) =>
+      prev.some((p) => p.toLowerCase() === name.toLowerCase()) ? prev : [...prev, name].sort((a, b) => a.localeCompare(b))
+    );
   }, []);
 
   const loadTransactions = useCallback(async () => {
@@ -70,16 +83,12 @@ export default function ReviewPage() {
   }, [loadCategories]);
 
   useEffect(() => {
+    Promise.resolve().then(() => loadPeople());
+  }, [loadPeople]);
+
+  useEffect(() => {
     Promise.resolve().then(() => loadTransactions());
   }, [loadTransactions]);
-
-  const knownParties = useMemo(() => {
-    const s = new Set<string>();
-    for (const t of transactions) {
-      if (t.party && t.party !== "Me") s.add(t.party);
-    }
-    return Array.from(s);
-  }, [transactions]);
 
   async function patchTransaction(id: number, patch: Partial<TxRow>) {
     setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
@@ -201,6 +210,8 @@ export default function ReviewPage() {
         <AddTransactionForm
           categories={categories}
           onAddCategory={addCategory}
+          knownPeople={knownPeople}
+          onNewPerson={addKnownPerson}
           onCreated={() => {
             loadTransactions();
           }}
@@ -257,6 +268,8 @@ export default function ReviewPage() {
             onPatch={(patch) => patchTransaction(t.id, patch)}
             onConfirm={() => confirmRow(t)}
             onAddCategory={addCategory}
+            knownPeople={knownPeople}
+            onNewPerson={addKnownPerson}
             canConfirm={canConfirm(t)}
           />
         ))}
@@ -305,6 +318,8 @@ export default function ReviewPage() {
                 onPatch={(patch) => patchTransaction(t.id, patch)}
                 onConfirm={() => confirmRow(t)}
                 onAddCategory={addCategory}
+                knownPeople={knownPeople}
+                onNewPerson={addKnownPerson}
                 canConfirm={canConfirm(t)}
               />
             ))}
@@ -319,12 +334,6 @@ export default function ReviewPage() {
         )}
         {loading && <div className="px-4 py-10 text-center text-sm text-zinc-500">Loading…</div>}
       </div>
-
-      <datalist id="known-parties">
-        {knownParties.map((p) => (
-          <option key={p} value={p} />
-        ))}
-      </datalist>
     </main>
   );
 }
@@ -336,10 +345,14 @@ function todayIso(): string {
 function AddTransactionForm({
   categories,
   onAddCategory,
+  knownPeople,
+  onNewPerson,
   onCreated,
 }: {
   categories: Category[];
   onAddCategory: (name: string, kind: CategoryKind) => Promise<Category | null>;
+  knownPeople: string[];
+  onNewPerson: (name: string) => void;
   onCreated: () => void;
 }) {
   const [draft, setDraft] = useState<TxRow>({
@@ -512,7 +525,14 @@ function AddTransactionForm({
           <label className="text-xs font-medium uppercase tracking-wide text-zinc-500">
             Whose money
           </label>
-          <WhoseMoneyPicker t={draft} categories={categories} onPatch={patchDraft} onAddCategory={onAddCategory} />
+          <WhoseMoneyPicker
+            t={draft}
+            categories={categories}
+            onPatch={patchDraft}
+            onAddCategory={onAddCategory}
+            knownPeople={knownPeople}
+            onNewPerson={onNewPerson}
+          />
         </div>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -541,9 +561,16 @@ interface PickerProps {
   categories: Category[];
   onPatch: (patch: Partial<TxRow>) => void;
   onAddCategory: (name: string, kind: CategoryKind) => Promise<Category | null>;
+  knownPeople: string[];
+  onNewPerson: (name: string) => void;
 }
 
-function CategoryPicker({ t, categories, onPatch, onAddCategory }: PickerProps) {
+function CategoryPicker({
+  t,
+  categories,
+  onPatch,
+  onAddCategory,
+}: Pick<PickerProps, "t" | "categories" | "onPatch" | "onAddCategory">) {
   const isExpense = t.amount < 0;
   const [addingCategory, setAddingCategory] = useState(false);
   const [newCatName, setNewCatName] = useState("");
@@ -638,7 +665,7 @@ function CategoryPicker({ t, categories, onPatch, onAddCategory }: PickerProps) 
   );
 }
 
-function WhoseMoneyPicker({ t, onPatch }: PickerProps) {
+function WhoseMoneyPicker({ t, onPatch, knownPeople, onNewPerson }: PickerProps) {
   const relationship = relationshipOf(t.party_role);
 
   return (
@@ -657,14 +684,135 @@ function WhoseMoneyPicker({ t, onPatch }: PickerProps) {
         <option value="owed_by_me">I owe them</option>
       </select>
       {relationship !== "owner" && (
-        <input
-          list="known-parties"
-          type="text"
-          placeholder="Person's name"
+        <PersonPicker
           value={t.party === "Me" ? "" : t.party}
-          onChange={(e) => onPatch({ party: e.target.value })}
-          className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-950 md:w-48"
+          onCommit={(name) => onPatch({ party: name })}
+          knownPeople={knownPeople}
+          onNewPerson={onNewPerson}
         />
+      )}
+    </div>
+  );
+}
+
+// Typeahead for the "person's name" field: suggests existing accounts (party
+// names already used on other transactions) as the user types, and requires
+// an explicit confirm before a name that doesn't match any of them is
+// treated as a brand-new account.
+function PersonPicker({
+  value,
+  onCommit,
+  knownPeople,
+  onNewPerson,
+}: {
+  value: string;
+  onCommit: (name: string) => void;
+  knownPeople: string[];
+  onNewPerson: (name: string) => void;
+}) {
+  const [text, setText] = useState(value);
+  const [open, setOpen] = useState(false);
+  const [pendingNew, setPendingNew] = useState(false);
+
+  useEffect(() => {
+    Promise.resolve().then(() => setText(value));
+  }, [value]);
+
+  const matches = useMemo(() => {
+    const q = text.trim().toLowerCase();
+    if (!q) return knownPeople;
+    return knownPeople.filter((p) => p.toLowerCase().includes(q));
+  }, [text, knownPeople]);
+
+  function selectExisting(name: string) {
+    setText(name);
+    setOpen(false);
+    setPendingNew(false);
+    onCommit(name);
+  }
+
+  function handleBlur() {
+    setOpen(false);
+    const trimmed = text.trim();
+    if (!trimmed) {
+      onCommit("");
+      setPendingNew(false);
+      return;
+    }
+    const exact = knownPeople.find((p) => p.toLowerCase() === trimmed.toLowerCase());
+    if (exact) {
+      setText(exact);
+      onCommit(exact);
+      setPendingNew(false);
+    } else if (trimmed !== value) {
+      setPendingNew(true);
+    }
+  }
+
+  function confirmNew() {
+    const trimmed = text.trim();
+    onNewPerson(trimmed);
+    onCommit(trimmed);
+    setPendingNew(false);
+  }
+
+  function cancelNew() {
+    setText(value);
+    setPendingNew(false);
+  }
+
+  return (
+    <div className="relative w-full md:w-48">
+      <input
+        type="text"
+        placeholder="Person's name"
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          setOpen(true);
+          setPendingNew(false);
+        }}
+        onFocus={() => setOpen(true)}
+        onBlur={handleBlur}
+        className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-950"
+      />
+      {open && matches.length > 0 && (
+        <div className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-md border border-zinc-300 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+          {matches.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => selectExisting(p)}
+              className="block w-full px-2 py-1 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      )}
+      {pendingNew && (
+        <div className="mt-1 flex flex-col gap-1 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+          <span>No existing account for &quot;{text.trim()}&quot;.</span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={confirmNew}
+              className="rounded-md bg-amber-600 px-2 py-0.5 font-medium text-white hover:bg-amber-700"
+            >
+              Create new account
+            </button>
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={cancelNew}
+              className="text-amber-800 underline underline-offset-2 hover:text-amber-950 dark:text-amber-300"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -677,7 +825,18 @@ interface RowProps extends PickerProps {
   canConfirm: boolean;
 }
 
-function RowDesktop({ t, categories, selected, onToggleSelect, onPatch, onConfirm, onAddCategory, canConfirm }: RowProps) {
+function RowDesktop({
+  t,
+  categories,
+  selected,
+  onToggleSelect,
+  onPatch,
+  onConfirm,
+  onAddCategory,
+  knownPeople,
+  onNewPerson,
+  canConfirm,
+}: RowProps) {
   const isExpense = t.amount < 0;
 
   return (
@@ -698,7 +857,14 @@ function RowDesktop({ t, categories, selected, onToggleSelect, onPatch, onConfir
         <CategoryPicker t={t} categories={categories} onPatch={onPatch} onAddCategory={onAddCategory} />
       </td>
       <td className="px-3 py-2">
-        <WhoseMoneyPicker t={t} categories={categories} onPatch={onPatch} onAddCategory={onAddCategory} />
+        <WhoseMoneyPicker
+          t={t}
+          categories={categories}
+          onPatch={onPatch}
+          onAddCategory={onAddCategory}
+          knownPeople={knownPeople}
+          onNewPerson={onNewPerson}
+        />
       </td>
       <td className="px-3 py-2">
         {t.confirmed ? (
@@ -717,7 +883,18 @@ function RowDesktop({ t, categories, selected, onToggleSelect, onPatch, onConfir
   );
 }
 
-function RowCard({ t, categories, selected, onToggleSelect, onPatch, onConfirm, onAddCategory, canConfirm }: RowProps) {
+function RowCard({
+  t,
+  categories,
+  selected,
+  onToggleSelect,
+  onPatch,
+  onConfirm,
+  onAddCategory,
+  knownPeople,
+  onNewPerson,
+  canConfirm,
+}: RowProps) {
   const isExpense = t.amount < 0;
 
   return (
@@ -746,7 +923,14 @@ function RowCard({ t, categories, selected, onToggleSelect, onPatch, onConfirm, 
 
       <div className="flex flex-col gap-1">
         <span className="text-xs font-medium uppercase tracking-wide text-zinc-500">Whose money</span>
-        <WhoseMoneyPicker t={t} categories={categories} onPatch={onPatch} onAddCategory={onAddCategory} />
+        <WhoseMoneyPicker
+          t={t}
+          categories={categories}
+          onPatch={onPatch}
+          onAddCategory={onAddCategory}
+          knownPeople={knownPeople}
+          onNewPerson={onNewPerson}
+        />
       </div>
 
       <div>
