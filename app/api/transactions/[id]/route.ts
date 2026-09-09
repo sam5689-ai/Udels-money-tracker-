@@ -42,6 +42,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     sets.push("account = ?");
     args.push(body.account.trim());
   }
+  if ("funded_by" in body && typeof body.funded_by === "string") {
+    sets.push("funded_by = ?");
+    args.push(body.funded_by.trim());
+  }
   if ("date" in body && typeof body.date === "string") {
     sets.push("date = ?");
     args.push(body.date);

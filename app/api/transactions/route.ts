@@ -68,6 +68,7 @@ export async function PATCH(req: NextRequest) {
       party_role?: PartyRole;
       party_kind?: PartyKind;
       account?: string;
+      funded_by?: string;
       confirmed?: boolean;
     };
   };
@@ -105,6 +106,10 @@ export async function PATCH(req: NextRequest) {
     sets.push("account = ?");
     args.push(patch.account.trim());
   }
+  if ("funded_by" in patch && typeof patch.funded_by === "string") {
+    sets.push("funded_by = ?");
+    args.push(patch.funded_by.trim());
+  }
   if ("confirmed" in patch) {
     sets.push("confirmed = ?");
     args.push(patch.confirmed ? 1 : 0);
@@ -137,6 +142,7 @@ export async function POST(req: NextRequest) {
   const partyKind: PartyKind = VALID_KINDS.includes(body.party_kind) ? body.party_kind : "person";
   const rawParty = typeof body.party === "string" ? body.party.trim() : "";
   const account = typeof body.account === "string" ? body.account.trim() : "";
+  const fundedBy = typeof body.funded_by === "string" ? body.funded_by.trim() : "";
   const confirmed = body.confirmed ? 1 : 0;
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -162,8 +168,8 @@ export async function POST(req: NextRequest) {
   try {
     const insert = await db.execute({
       sql: `INSERT INTO transactions
-              (upload_id, date, description, amount, category_id, party, party_role, party_kind, account, confirmed, confirmed_at, dedupe_hash)
-            VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              (upload_id, date, description, amount, category_id, party, party_role, party_kind, account, funded_by, confirmed, confirmed_at, dedupe_hash)
+            VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         date,
         description,
@@ -173,6 +179,7 @@ export async function POST(req: NextRequest) {
         partyRole,
         partyKind,
         account,
+        fundedBy,
         confirmed,
         confirmed ? new Date().toISOString() : null,
         hash,

@@ -17,6 +17,7 @@ interface TxRow {
   party_role: PartyRole;
   party_kind: PartyKind;
   account: string;
+  funded_by: string;
   confirmed: number;
 }
 
@@ -426,6 +427,7 @@ function AddTransactionForm({
     party_role: "owner",
     party_kind: "person",
     account: "",
+    funded_by: "",
     confirmed: 0,
   });
   const [amountText, setAmountText] = useState("");
@@ -489,6 +491,7 @@ function AddTransactionForm({
         party_role: draft.party_role,
         party_kind: draft.party_kind,
         account: draft.account,
+        funded_by: draft.funded_by,
         confirmed: confirmNow,
       }),
     });
@@ -506,6 +509,7 @@ function AddTransactionForm({
         party_role: "owner",
         party_kind: "person",
         party: "Me",
+        funded_by: "",
       }));
       setAmountText("");
     } else {
@@ -755,6 +759,7 @@ function CategoryPicker({
 function WhoseMoneyPicker({ t, onPatch, knownPeople, onNewPerson, knownAccounts, onNewAccount }: PickerProps) {
   const relationship = relationshipOf(t.party_role, t.party_kind);
   const isAccount = relationship === "own_account";
+  const isSpending = relationship === "owner" && t.amount < 0;
 
   return (
     <div className="flex flex-col gap-1">
@@ -788,6 +793,21 @@ function WhoseMoneyPicker({ t, onPatch, knownPeople, onNewPerson, knownAccounts,
           entityNoun={isAccount ? "account" : "person"}
           placeholder={isAccount ? "e.g. Halifax, Purely Investments" : "Person's name"}
         />
+      )}
+      {isSpending && knownAccounts.length > 0 && (
+        <select
+          value={t.funded_by}
+          onChange={(e) => onPatch({ funded_by: e.target.value })}
+          title="Optional: count this purchase against money you withdrew from savings, rather than ordinary spending"
+          className="w-full rounded-lg border border-violet-200 bg-white px-2 py-1 text-xs text-zinc-500 dark:border-white/10 dark:bg-zinc-950 dark:text-violet-200/60 md:w-48"
+        >
+          <option value="">Funded by savings? (optional)</option>
+          {knownAccounts.map((a) => (
+            <option key={a} value={a}>
+              From {a}
+            </option>
+          ))}
+        </select>
       )}
     </div>
   );

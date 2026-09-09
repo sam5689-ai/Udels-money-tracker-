@@ -53,6 +53,7 @@ async function migrate(db: Client) {
         CHECK (party_role IN ('owner','borrowed_from','lent_to','repaid_to','repaid_by')),
       party_kind TEXT NOT NULL DEFAULT 'person' CHECK (party_kind IN ('person','account')),
       account TEXT NOT NULL DEFAULT '',
+      funded_by TEXT NOT NULL DEFAULT '',
       confirmed INTEGER NOT NULL DEFAULT 0,
       confirmed_at TEXT,
       dedupe_hash TEXT NOT NULL UNIQUE,
@@ -109,6 +110,9 @@ async function ensureColumns(db: Client) {
   }
   if (!txColumns.has("account")) {
     await db.execute("ALTER TABLE transactions ADD COLUMN account TEXT NOT NULL DEFAULT ''");
+  }
+  if (!txColumns.has("funded_by")) {
+    await db.execute("ALTER TABLE transactions ADD COLUMN funded_by TEXT NOT NULL DEFAULT ''");
   }
 
   const uploadsInfo = await db.execute("PRAGMA table_info(uploads)");

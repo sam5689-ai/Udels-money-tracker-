@@ -33,6 +33,15 @@ export interface Transaction {
   // for transactions imported before this existed, or entered manually
   // without picking one.
   account: string;
+  // Optional, self-declared: which savings/account pot this specific
+  // spend should be counted against (e.g. "Purely Investments"), for
+  // when money was withdrawn from savings into a regular account and
+  // then spent later — once mixed with other money there's no way to
+  // trace it automatically, so this is the user saying "count this
+  // purchase against what I withdrew." Independent of `account` (which
+  // physical account the spend happened in) and only meaningful for
+  // owner+expense transactions. Blank means untagged/ordinary spending.
+  funded_by: string;
   confirmed: number;
   confirmed_at: string | null;
   dedupe_hash: string;
