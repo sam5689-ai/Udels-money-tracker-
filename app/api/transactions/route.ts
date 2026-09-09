@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
   }
   if (partyRole !== "owner" && !rawParty) {
     return NextResponse.json(
-      { error: partyKind === "account" ? "An account name is required for this whose-money option" : "Person's name is required for this whose-money option" },
+      { error: partyKind === "account" ? "A savings account name is required for this whose-money option" : "Person's name is required for this whose-money option" },
       { status: 400 }
     );
   }

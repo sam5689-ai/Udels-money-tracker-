@@ -165,8 +165,8 @@ export default function DashboardPage() {
         />
         <BucketTile
           bucketKey="ownAccounts"
-          label="My other accounts"
-          hint="Moved to another account you own"
+          label="Savings"
+          hint="Still yours, always available to you"
           value={summary.buckets.ownAccounts.total}
           color={isDark ? "#a78bfa" : "#7c3aed"}
           active={expandedBucket === "ownAccounts"}
@@ -191,7 +191,7 @@ export default function DashboardPage() {
               : expandedBucket === "lentOut"
                 ? "Lent out"
                 : expandedBucket === "ownAccounts"
-                  ? "My other accounts"
+                  ? "Savings"
                   : "Everything else"
           }
           bucket={summary.buckets[expandedBucket]}
@@ -377,7 +377,7 @@ export default function DashboardPage() {
       {summary.accounts.length > 0 && (
         <section className="rounded-3xl border border-violet-100 bg-white p-4 shadow-[0_2px_24px_-6px_rgba(139,92,246,0.12)] sm:p-5 dark:border-white/10 dark:bg-white/5 dark:shadow-none">
           <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">
-            My accounts
+            Savings
           </h2>
           {/* Mobile: cards */}
           <div className="flex flex-col gap-3 md:hidden">

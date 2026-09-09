@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 // the same kind as the user types, and requires an explicit confirm
 // before a name that doesn't match any of them is treated as brand-new.
 // Also guards against naming collisions across kinds — e.g. typing
-// "Jordan" while picking "My own account" when "Jordan" already exists as
+// "Jordan" while picking "Savings" when "Jordan" already exists as
 // a person would otherwise silently mix a personal IOU and an account
 // transfer under the same ledger. Shared between the Review page's whose-
 // money picker and the Upload page's "which account is this from" field.

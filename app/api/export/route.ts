@@ -23,8 +23,8 @@ const CURRENCY_FORMAT = '£#,##0.00;[Red]-£#,##0.00';
 
 function whoseMoneyLabel(role: PartyRole, kind: PartyKind): string {
   if (kind === "account") {
-    if (role === "lent_to") return "Moved to my own account";
-    if (role === "repaid_by") return "Moved from my own account";
+    if (role === "lent_to") return "Moved to savings";
+    if (role === "repaid_by") return "Moved from savings";
   }
   return PARTY_ROLE_LABELS[role];
 }

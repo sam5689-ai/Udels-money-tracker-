@@ -25,11 +25,13 @@ type Filter = "unconfirmed" | "confirmed" | "all";
 // The 5 underlying party_role values collapse into 4 relationships in the
 // UI: whether a given transaction is a loan/transfer or a repayment is
 // already implied by its amount's sign (money out vs. money in), so
-// there's no need to ask for that separately. "Money lent" and "My own
-// account" share the exact same lent_to/repaid_by pair and sign logic —
-// the only difference is party_kind, i.e. whether `party` names another
-// person or one of your own accounts (so uploading both sides of a
-// transfer between two of your accounts never inflates income/expenses).
+// there's no need to ask for that separately. "Money lent" and "Savings"
+// share the exact same lent_to/repaid_by pair and sign logic — the only
+// difference is party_kind, i.e. whether `party` names another person or
+// one of your own savings/investment accounts (so uploading both sides
+// of a transfer between two of your accounts never inflates
+// income/expenses). "owner" likewise covers both directions — its label
+// just switches between "Money spent" and "Money received" by sign.
 type MoneyRelationship = "owner" | "owed_to_me" | "owed_by_me" | "own_account";
 
 function relationshipOf(role: PartyRole, kind: PartyKind): MoneyRelationship {
@@ -466,7 +468,7 @@ function AddTransactionForm({
     if (draft.party_role !== "owner" && !draft.party.trim()) {
       setError(
         draft.party_kind === "account"
-          ? "An account name is required for this whose-money option"
+          ? "A savings account name is required for this whose-money option"
           : "Person's name is required for this whose-money option"
       );
       return;
@@ -771,10 +773,10 @@ function WhoseMoneyPicker({ t, onPatch, knownPeople, onNewPerson, knownAccounts,
         }}
         className="w-full rounded-lg border border-violet-200 bg-white px-2 py-1 dark:border-white/10 dark:bg-zinc-950 md:w-48"
       >
-        <option value="owner">My own money</option>
+        <option value="owner">{t.amount < 0 ? "Money spent" : "Money received"}</option>
         <option value="owed_to_me">Money lent</option>
         <option value="owed_by_me">Money borrowed</option>
-        <option value="own_account">My own account</option>
+        <option value="own_account">Savings</option>
       </select>
       {relationship !== "owner" && (
         <PersonPicker
@@ -784,7 +786,7 @@ function WhoseMoneyPicker({ t, onPatch, knownPeople, onNewPerson, knownAccounts,
           onNewName={isAccount ? onNewAccount : onNewPerson}
           otherKindNames={isAccount ? knownPeople : knownAccounts}
           entityNoun={isAccount ? "account" : "person"}
-          placeholder={isAccount ? "Account name (e.g. Savings)" : "Person's name"}
+          placeholder={isAccount ? "e.g. Halifax, Purely Investments" : "Person's name"}
         />
       )}
     </div>
