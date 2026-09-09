@@ -29,8 +29,8 @@ export default async function Home() {
         </h1>
         <p className="mt-2 max-w-2xl text-zinc-600 dark:text-violet-200/60">
           Upload spreadsheets of your bank statements, confirm the category and whose money
-          each transaction is (yours, borrowed, or lent), then see a clear picture of your
-          income and expenses over the past year.
+          each transaction is (spent, received, lent, borrowed, or moved to savings), then see
+          a clear picture of your income and expenses over the past year.
         </p>
       </div>
 
@@ -56,7 +56,7 @@ export default async function Home() {
         <Card
           href="/review"
           title="2. Review & confirm"
-          description="Set a category for each transaction, and mark whose money it was — yours, borrowed, or lent."
+          description="Set a category, and mark whose money it was — spent, received, lent, borrowed, or moved to savings."
           icon={<path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />}
         />
         <Card

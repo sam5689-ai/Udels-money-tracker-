@@ -18,6 +18,7 @@ export default function PersonPicker({
   otherKindNames,
   entityNoun,
   placeholder,
+  wide,
 }: {
   value: string;
   onCommit: (name: string) => void;
@@ -26,6 +27,11 @@ export default function PersonPicker({
   otherKindNames: string[];
   entityNoun: "person" | "account";
   placeholder: string;
+  // The default width is tuned to fit inside the Review table's "Whose
+  // money" column. Pages with more room (Upload) should pass wide so
+  // longer placeholders like "e.g. Halifax, Revolut, Wise" don't get
+  // visually clipped by the input's own width.
+  wide?: boolean;
 }) {
   const [text, setText] = useState(value);
   const [open, setOpen] = useState(false);
@@ -95,7 +101,7 @@ export default function PersonPicker({
   }
 
   return (
-    <div className="relative w-full md:w-48">
+    <div className={`relative w-full ${wide ? "" : "md:w-48"}`}>
       <input
         type="text"
         placeholder={placeholder}

@@ -187,8 +187,12 @@ export default function ReviewPage() {
     loadTransactions();
   }
 
+  // A category is only meaningful for your own spending/income — a loan,
+  // repayment, or savings transfer isn't really "a category" of expense,
+  // so don't force a choice there. Those still need the person/account
+  // name filled in, same as before.
   const canConfirm = (t: TxRow) =>
-    t.category_id != null && (t.party_role === "owner" || t.party.trim().length > 0);
+    t.party_role === "owner" ? t.category_id != null : t.party.trim().length > 0;
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
@@ -606,6 +610,7 @@ function AddTransactionForm({
             otherKindNames={knownPeople}
             entityNoun="account"
             placeholder="e.g. Halifax, Revolut, Wise"
+            wide
           />
         </div>
         <div className="flex flex-col gap-1 sm:col-span-2">
@@ -760,6 +765,7 @@ function WhoseMoneyPicker({ t, onPatch, knownPeople, onNewPerson, knownAccounts,
   const relationship = relationshipOf(t.party_role, t.party_kind);
   const isAccount = relationship === "own_account";
   const isSpending = relationship === "owner" && t.amount < 0;
+  const [showFundedBy, setShowFundedBy] = useState(false);
 
   return (
     <div className="flex flex-col gap-1">
@@ -794,21 +800,31 @@ function WhoseMoneyPicker({ t, onPatch, knownPeople, onNewPerson, knownAccounts,
           placeholder={isAccount ? "e.g. Halifax, Purely Investments" : "Person's name"}
         />
       )}
-      {isSpending && knownAccounts.length > 0 && (
-        <select
-          value={t.funded_by}
-          onChange={(e) => onPatch({ funded_by: e.target.value })}
-          title="Optional: count this purchase against money you withdrew from savings, rather than ordinary spending"
-          className="w-full rounded-lg border border-violet-200 bg-white px-2 py-1 text-xs text-zinc-500 dark:border-white/10 dark:bg-zinc-950 dark:text-violet-200/60 md:w-48"
-        >
-          <option value="">Funded by savings? (optional)</option>
-          {knownAccounts.map((a) => (
-            <option key={a} value={a}>
-              From {a}
-            </option>
-          ))}
-        </select>
-      )}
+      {isSpending &&
+        knownAccounts.length > 0 &&
+        (t.funded_by || showFundedBy ? (
+          <select
+            value={t.funded_by}
+            onChange={(e) => onPatch({ funded_by: e.target.value })}
+            title="Optional: count this purchase against money you withdrew from savings, rather than ordinary spending"
+            className="w-full rounded-lg border border-violet-200 bg-white px-2 py-1 text-xs text-zinc-500 dark:border-white/10 dark:bg-zinc-950 dark:text-violet-200/60"
+          >
+            <option value="">Not tagged</option>
+            {knownAccounts.map((a) => (
+              <option key={a} value={a}>
+                From {a}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowFundedBy(true)}
+            className="self-start text-xs text-violet-400 hover:text-violet-600 dark:text-violet-300/50 dark:hover:text-violet-200"
+          >
+            + Funded by savings?
+          </button>
+        ))}
     </div>
   );
 }

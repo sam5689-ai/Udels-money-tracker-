@@ -147,6 +147,7 @@ export default function UploadPage() {
           otherKindNames={knownPeople}
           entityNoun="account"
           placeholder="e.g. Halifax, Revolut, Wise"
+          wide
         />
         <p className="text-xs text-zinc-500 dark:text-violet-200/50">
           Every transaction from this file will be tagged with this account. Files uploaded
