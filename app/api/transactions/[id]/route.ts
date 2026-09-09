@@ -38,6 +38,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     sets.push("party_kind = ?");
     args.push(body.party_kind);
   }
+  if ("account" in body && typeof body.account === "string") {
+    sets.push("account = ?");
+    args.push(body.account.trim());
+  }
   if ("date" in body && typeof body.date === "string") {
     sets.push("date = ?");
     args.push(body.date);

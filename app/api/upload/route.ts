@@ -11,9 +11,14 @@ const MAX_FILE_BYTES = 15 * 1024 * 1024;
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
   const file = formData.get("file");
+  const rawAccount = formData.get("account");
+  const account = typeof rawAccount === "string" ? rawAccount.trim() : "";
 
   if (!file || !(file instanceof File)) {
     return NextResponse.json({ error: "No file was uploaded." }, { status: 400 });
+  }
+  if (!account) {
+    return NextResponse.json({ error: "Choose which account this file is from." }, { status: 400 });
   }
 
   if (file.size === 0) {
@@ -54,16 +59,16 @@ export async function POST(req: NextRequest) {
   const db = await getDb();
 
   const uploadInfo = await db.execute({
-    sql: `INSERT INTO uploads (filename, row_count) VALUES (?, ?)`,
-    args: [file.name, result.rows.length],
+    sql: `INSERT INTO uploads (filename, account, row_count) VALUES (?, ?, ?)`,
+    args: [file.name, account, result.rows.length],
   });
   const uploadId = Number(uploadInfo.lastInsertRowid);
 
   const insertResults = await db.batch(
     result.rows.map((row) => ({
       sql: `
-        INSERT INTO transactions (upload_id, date, description, amount, dedupe_hash, raw_row)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO transactions (upload_id, date, description, amount, account, dedupe_hash, raw_row)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(dedupe_hash) DO NOTHING
       `,
       args: [
@@ -71,7 +76,8 @@ export async function POST(req: NextRequest) {
         row.date,
         row.description,
         row.amount,
-        dedupeHash(row.date, row.description, row.amount),
+        account,
+        dedupeHash(row.date, row.description, row.amount, account),
         JSON.stringify(row.raw),
       ],
     })),

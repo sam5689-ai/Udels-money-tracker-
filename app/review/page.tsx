@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Category, CategoryKind, PartyKind, PartyRole } from "@/lib/types";
+import PersonPicker from "@/app/components/PersonPicker";
 
 interface TxRow {
   id: number;
@@ -15,6 +16,7 @@ interface TxRow {
   party: string;
   party_role: PartyRole;
   party_kind: PartyKind;
+  account: string;
   confirmed: number;
 }
 
@@ -52,6 +54,7 @@ export default function ReviewPage() {
   const [transactions, setTransactions] = useState<TxRow[]>([]);
   const [filter, setFilter] = useState<Filter>("unconfirmed");
   const [search, setSearch] = useState("");
+  const [accountFilter, setAccountFilter] = useState("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [bulkCategoryId, setBulkCategoryId] = useState<string>("");
@@ -94,12 +97,13 @@ export default function ReviewPage() {
     const params = new URLSearchParams();
     if (filter !== "all") params.set("confirmed", filter === "confirmed" ? "1" : "0");
     if (search) params.set("search", search);
+    if (accountFilter) params.set("account", accountFilter);
     const res = await fetch(`/api/transactions?${params.toString()}`);
     const data = await res.json();
     setTransactions(data.transactions);
     setSelected(new Set());
     setLoading(false);
-  }, [filter, search]);
+  }, [filter, search, accountFilter]);
 
   useEffect(() => {
     Promise.resolve().then(() => loadCategories());
@@ -194,13 +198,29 @@ export default function ReviewPage() {
             Set a category and confirm whose money it was for each transaction.
           </p>
         </div>
-        <input
-          type="text"
-          placeholder="Search description…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-xl border border-violet-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 dark:border-white/10 dark:bg-zinc-950 dark:focus:ring-violet-500/30 sm:w-64"
-        />
+        <div className="flex flex-col gap-2 sm:flex-row">
+          {knownAccounts.length > 0 && (
+            <select
+              value={accountFilter}
+              onChange={(e) => setAccountFilter(e.target.value)}
+              className="rounded-xl border border-violet-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 dark:border-white/10 dark:bg-zinc-950 dark:focus:ring-violet-500/30"
+            >
+              <option value="">All accounts</option>
+              {knownAccounts.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </select>
+          )}
+          <input
+            type="text"
+            placeholder="Search description…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full rounded-xl border border-violet-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 dark:border-white/10 dark:bg-zinc-950 dark:focus:ring-violet-500/30 sm:w-64"
+          />
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -403,6 +423,7 @@ function AddTransactionForm({
     party: "Me",
     party_role: "owner",
     party_kind: "person",
+    account: "",
     confirmed: 0,
   });
   const [amountText, setAmountText] = useState("");
@@ -465,6 +486,7 @@ function AddTransactionForm({
         party: draft.party,
         party_role: draft.party_role,
         party_kind: draft.party_kind,
+        account: draft.account,
         confirmed: confirmNow,
       }),
     });
@@ -472,8 +494,9 @@ function AddTransactionForm({
 
     if (res.ok) {
       onCreated();
-      // Reset for adding another, but keep the date/direction — the common
-      // case is entering several transactions from the same day in a row.
+      // Reset for adding another, but keep the date/direction/account — the
+      // common case is entering several transactions from the same day and
+      // account in a row.
       setDraft((d) => ({
         ...d,
         description: "",
@@ -564,6 +587,20 @@ function AddTransactionForm({
             Category
           </label>
           <CategoryPicker t={draft} categories={categories} onPatch={patchDraft} onAddCategory={onAddCategory} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">
+            Account (optional)
+          </label>
+          <PersonPicker
+            value={draft.account}
+            onCommit={(name) => patchDraft({ account: name })}
+            knownNames={knownAccounts}
+            onNewName={onNewAccount}
+            otherKindNames={knownPeople}
+            entityNoun="account"
+            placeholder="e.g. Halifax, Revolut, Wise"
+          />
         </div>
         <div className="flex flex-col gap-1 sm:col-span-2">
           <label className="text-xs font-medium uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">
@@ -754,173 +791,6 @@ function WhoseMoneyPicker({ t, onPatch, knownPeople, onNewPerson, knownAccounts,
   );
 }
 
-// Typeahead for the person/account name field: suggests existing entries
-// of the same kind as the user types, and requires an explicit confirm
-// before a name that doesn't match any of them is treated as brand-new.
-// Also guards against naming collisions across kinds — e.g. typing
-// "Jordan" while picking "My own account" when "Jordan" already exists as
-// a person would otherwise silently mix a personal IOU and an account
-// transfer under the same ledger.
-function PersonPicker({
-  value,
-  onCommit,
-  knownNames,
-  onNewName,
-  otherKindNames,
-  entityNoun,
-  placeholder,
-}: {
-  value: string;
-  onCommit: (name: string) => void;
-  knownNames: string[];
-  onNewName: (name: string) => void;
-  otherKindNames: string[];
-  entityNoun: "person" | "account";
-  placeholder: string;
-}) {
-  const [text, setText] = useState(value);
-  const [open, setOpen] = useState(false);
-  const [pendingNew, setPendingNew] = useState(false);
-  const [collision, setCollision] = useState<string | null>(null);
-
-  useEffect(() => {
-    Promise.resolve().then(() => setText(value));
-  }, [value]);
-
-  const matches = useMemo(() => {
-    const q = text.trim().toLowerCase();
-    if (!q) return knownNames;
-    return knownNames.filter((p) => p.toLowerCase().includes(q));
-  }, [text, knownNames]);
-
-  function selectExisting(name: string) {
-    setText(name);
-    setOpen(false);
-    setPendingNew(false);
-    setCollision(null);
-    onCommit(name);
-  }
-
-  function handleBlur() {
-    setOpen(false);
-    const trimmed = text.trim();
-    if (!trimmed) {
-      onCommit("");
-      setPendingNew(false);
-      setCollision(null);
-      return;
-    }
-    const exact = knownNames.find((p) => p.toLowerCase() === trimmed.toLowerCase());
-    if (exact) {
-      setText(exact);
-      onCommit(exact);
-      setPendingNew(false);
-      setCollision(null);
-      return;
-    }
-    const otherExact = otherKindNames.find((p) => p.toLowerCase() === trimmed.toLowerCase());
-    if (otherExact) {
-      setCollision(otherExact);
-      setPendingNew(false);
-      return;
-    }
-    setCollision(null);
-    if (trimmed !== value) setPendingNew(true);
-  }
-
-  function confirmNew() {
-    const trimmed = text.trim();
-    onNewName(trimmed);
-    onCommit(trimmed);
-    setPendingNew(false);
-  }
-
-  function cancelNew() {
-    setText(value);
-    setPendingNew(false);
-  }
-
-  function dismissCollision() {
-    setText(value);
-    setCollision(null);
-  }
-
-  return (
-    <div className="relative w-full md:w-48">
-      <input
-        type="text"
-        placeholder={placeholder}
-        value={text}
-        onChange={(e) => {
-          setText(e.target.value);
-          setOpen(true);
-          setPendingNew(false);
-          setCollision(null);
-        }}
-        onFocus={() => setOpen(true)}
-        onBlur={handleBlur}
-        className="w-full rounded-lg border border-violet-200 bg-white px-2 py-1 dark:border-white/10 dark:bg-zinc-950"
-      />
-      {open && matches.length > 0 && (
-        <div className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-xl border border-violet-100 bg-white shadow-lg dark:border-white/10 dark:bg-zinc-900">
-          {matches.map((p) => (
-            <button
-              key={p}
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => selectExisting(p)}
-              className="block w-full px-2 py-1 text-left text-sm hover:bg-violet-50 dark:hover:bg-white/10"
-            >
-              {p}
-            </button>
-          ))}
-        </div>
-      )}
-      {pendingNew && (
-        <div className="mt-1 flex flex-col gap-1 rounded-xl border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
-          <span>
-            No existing {entityNoun} called &quot;{text.trim()}&quot;.
-          </span>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={confirmNew}
-              className="rounded-full bg-amber-600 px-2 py-0.5 font-medium text-white hover:bg-amber-700"
-            >
-              {entityNoun === "account" ? "Create new account" : "Add this person"}
-            </button>
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={cancelNew}
-              className="text-amber-800 underline underline-offset-2 hover:text-amber-950 dark:text-amber-300"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-      {collision && (
-        <div className="mt-1 flex flex-col gap-1 rounded-xl border border-red-300 bg-red-50 p-2 text-xs text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
-          <span>
-            &quot;{collision}&quot; is already used as {entityNoun === "account" ? "a person" : "an account"}. Pick a
-            different name.
-          </span>
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={dismissCollision}
-            className="self-start text-red-800 underline underline-offset-2 hover:text-red-950 dark:text-red-300"
-          >
-            OK
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 interface RowProps extends PickerProps {
   selected: boolean;
   onToggleSelect: () => void;
@@ -950,7 +820,12 @@ function RowDesktop({
         <input type="checkbox" checked={selected} onChange={onToggleSelect} />
       </td>
       <td className="whitespace-nowrap px-3 py-2 text-zinc-500 dark:text-violet-200/50">{t.date}</td>
-      <td className="px-3 py-2">{t.description}</td>
+      <td className="px-3 py-2">
+        {t.description}
+        {t.account && (
+          <div className="text-xs text-violet-400 dark:text-violet-300/50">{t.account}</div>
+        )}
+      </td>
       <td
         className={`whitespace-nowrap px-3 py-2 text-right font-medium ${
           isExpense ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"
@@ -1013,7 +888,10 @@ function RowCard({
         <div className="flex flex-1 items-start justify-between gap-2">
           <div>
             <div className="font-medium text-violet-950 dark:text-white">{t.description}</div>
-            <div className="text-xs text-zinc-500 dark:text-violet-200/50">{t.date}</div>
+            <div className="text-xs text-zinc-500 dark:text-violet-200/50">
+              {t.date}
+              {t.account ? ` · ${t.account}` : ""}
+            </div>
           </div>
           <div
             className={`whitespace-nowrap font-semibold ${

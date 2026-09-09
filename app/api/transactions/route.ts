@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
   const from = searchParams.get("from");
   const to = searchParams.get("to");
   const search = searchParams.get("search");
+  const account = searchParams.get("account");
 
   const clauses: string[] = [];
   const args: (string | number)[] = [];
@@ -36,6 +37,10 @@ export async function GET(req: NextRequest) {
   if (search) {
     clauses.push("t.description LIKE ?");
     args.push(`%${search}%`);
+  }
+  if (account) {
+    clauses.push("t.account = ?");
+    args.push(account);
   }
 
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
@@ -62,6 +67,7 @@ export async function PATCH(req: NextRequest) {
       party?: string;
       party_role?: PartyRole;
       party_kind?: PartyKind;
+      account?: string;
       confirmed?: boolean;
     };
   };
@@ -95,6 +101,10 @@ export async function PATCH(req: NextRequest) {
     sets.push("party_kind = ?");
     args.push(patch.party_kind);
   }
+  if ("account" in patch && typeof patch.account === "string") {
+    sets.push("account = ?");
+    args.push(patch.account.trim());
+  }
   if ("confirmed" in patch) {
     sets.push("confirmed = ?");
     args.push(patch.confirmed ? 1 : 0);
@@ -126,6 +136,7 @@ export async function POST(req: NextRequest) {
   const partyRole: PartyRole = VALID_ROLES.includes(body.party_role) ? body.party_role : "owner";
   const partyKind: PartyKind = VALID_KINDS.includes(body.party_kind) ? body.party_kind : "person";
   const rawParty = typeof body.party === "string" ? body.party.trim() : "";
+  const account = typeof body.account === "string" ? body.account.trim() : "";
   const confirmed = body.confirmed ? 1 : 0;
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -146,13 +157,13 @@ export async function POST(req: NextRequest) {
 
   const party = rawParty || "Me";
 
-  const hash = dedupeHash(date, description, amount);
+  const hash = dedupeHash(date, description, amount, account);
 
   try {
     const insert = await db.execute({
       sql: `INSERT INTO transactions
-              (upload_id, date, description, amount, category_id, party, party_role, party_kind, confirmed, confirmed_at, dedupe_hash)
-            VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              (upload_id, date, description, amount, category_id, party, party_role, party_kind, account, confirmed, confirmed_at, dedupe_hash)
+            VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         date,
         description,
@@ -161,6 +172,7 @@ export async function POST(req: NextRequest) {
         party,
         partyRole,
         partyKind,
+        account,
         confirmed,
         confirmed ? new Date().toISOString() : null,
         hash,

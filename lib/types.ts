@@ -27,6 +27,12 @@ export interface Transaction {
   party: string;
   party_role: PartyRole;
   party_kind: PartyKind;
+  // Which of YOUR OWN accounts (Halifax, Revolut, Wise, ...) this
+  // transaction happened in — set when uploading a statement, distinct
+  // from `party`, which names the OTHER side of a loan/transfer. Blank
+  // for transactions imported before this existed, or entered manually
+  // without picking one.
+  account: string;
   confirmed: number;
   confirmed_at: string | null;
   dedupe_hash: string;
@@ -37,6 +43,7 @@ export interface Transaction {
 export interface Upload {
   id: number;
   filename: string;
+  account: string;
   uploaded_at: string;
   row_count: number;
   imported_count: number;
