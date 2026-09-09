@@ -35,15 +35,17 @@ interface Summary {
   buckets: {
     spending: Bucket;
     lentOut: Bucket;
+    ownAccounts: Bucket;
     everythingElse: Bucket;
   };
   monthly: { month: string; income: number; expenses: number; net: number }[];
   byCategory: { category: string; kind: string; total: number }[];
   loans: { party: string; youOweThem: number; theyOweYou: number; net: number }[];
+  accounts: { party: string; movedOut: number; movedBack: number }[];
   unconfirmedCount: number;
 }
 
-type BucketKey = "spending" | "lentOut" | "everythingElse";
+type BucketKey = "spending" | "lentOut" | "ownAccounts" | "everythingElse";
 
 function currency(n: number): string {
   const sign = n < 0 ? "-" : "";
@@ -67,6 +69,13 @@ const BUCKET_ICONS: Record<BucketKey, React.ReactNode> = {
     </>
   ),
   lentOut: <path strokeLinecap="round" strokeLinejoin="round" d="M7 17L17 7M7 7h10v10" />,
+  ownAccounts: (
+    <>
+      <rect x="4" y="4" width="16" height="16" rx="3" />
+      <circle cx="12" cy="12" r="3" />
+      <path strokeLinecap="round" d="M12 9v1M12 14v1M9 12h1M14 12h1" />
+    </>
+  ),
   everythingElse: (
     <>
       <rect x="4" y="4" width="7" height="7" rx="1.5" />
@@ -135,7 +144,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <BucketTile
           bucketKey="spending"
           label="My spending"
@@ -155,6 +164,15 @@ export default function DashboardPage() {
           onClick={() => setExpandedBucket((k) => (k === "lentOut" ? null : "lentOut"))}
         />
         <BucketTile
+          bucketKey="ownAccounts"
+          label="My other accounts"
+          hint="Moved to another account you own"
+          value={summary.buckets.ownAccounts.total}
+          color={isDark ? "#a78bfa" : "#7c3aed"}
+          active={expandedBucket === "ownAccounts"}
+          onClick={() => setExpandedBucket((k) => (k === "ownAccounts" ? null : "ownAccounts"))}
+        />
+        <BucketTile
           bucketKey="everythingElse"
           label="Everything else"
           hint="Income, borrowed money, repayments"
@@ -172,7 +190,9 @@ export default function DashboardPage() {
               ? "My spending"
               : expandedBucket === "lentOut"
                 ? "Lent out"
-                : "Everything else"
+                : expandedBucket === "ownAccounts"
+                  ? "My other accounts"
+                  : "Everything else"
           }
           bucket={summary.buckets[expandedBucket]}
           onClose={() => setExpandedBucket(null)}
@@ -342,6 +362,67 @@ export default function DashboardPage() {
                   <td className="py-2 pl-3 text-right">
                     <Link
                       href={`/people/${encodeURIComponent(l.party)}`}
+                      className="inline-block rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700 hover:bg-violet-100 dark:bg-white/10 dark:text-violet-200 dark:hover:bg-white/20"
+                    >
+                      View ledger →
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
+      {summary.accounts.length > 0 && (
+        <section className="rounded-3xl border border-violet-100 bg-white p-4 shadow-[0_2px_24px_-6px_rgba(139,92,246,0.12)] sm:p-5 dark:border-white/10 dark:bg-white/5 dark:shadow-none">
+          <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">
+            My accounts
+          </h2>
+          {/* Mobile: cards */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {summary.accounts.map((a) => (
+              <div
+                key={a.party}
+                className="rounded-2xl border border-violet-100 p-3 dark:border-white/10"
+              >
+                <Link
+                  href={`/people/${encodeURIComponent(a.party)}`}
+                  className="font-medium text-violet-700 hover:text-violet-900 dark:text-violet-200 dark:hover:text-white"
+                >
+                  {a.party}
+                </Link>
+                <div className="mt-1 flex gap-4 text-xs text-zinc-500 dark:text-violet-200/50">
+                  <span>Moved out: {currency(a.movedOut)}</span>
+                  <span>Moved back: {currency(a.movedBack)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop: table */}
+          <table className="hidden w-full text-sm md:table">
+            <thead className="text-left text-zinc-500 dark:text-violet-200/50">
+              <tr>
+                <th className="pb-2 font-medium">Account</th>
+                <th className="pb-2 font-medium text-right">Moved out</th>
+                <th className="pb-2 font-medium text-right">Moved back</th>
+                <th className="pb-2 font-medium"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {summary.accounts.map((a) => (
+                <tr key={a.party} className="border-t border-violet-100 dark:border-white/10">
+                  <td className="py-2 font-medium text-violet-950 dark:text-white">{a.party}</td>
+                  <td className="py-2 text-right text-zinc-600 dark:text-violet-200/60">
+                    {currency(a.movedOut)}
+                  </td>
+                  <td className="py-2 text-right text-zinc-600 dark:text-violet-200/60">
+                    {currency(a.movedBack)}
+                  </td>
+                  <td className="py-2 pl-3 text-right">
+                    <Link
+                      href={`/people/${encodeURIComponent(a.party)}`}
                       className="inline-block rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700 hover:bg-violet-100 dark:bg-white/10 dark:text-violet-200 dark:hover:bg-white/20"
                     >
                       View ledger →

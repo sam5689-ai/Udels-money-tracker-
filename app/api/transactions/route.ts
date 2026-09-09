@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { LibsqlError } from "@libsql/client";
 import { getDb, rowsOf } from "@/lib/db";
 import { dedupeHash } from "@/lib/hash";
-import { PartyRole } from "@/lib/types";
+import { PartyKind, PartyRole } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const VALID_ROLES: PartyRole[] = ["owner", "borrowed_from", "lent_to", "repaid_to", "repaid_by"];
+const VALID_KINDS: PartyKind[] = ["person", "account"];
 
 export async function GET(req: NextRequest) {
   const db = await getDb();
@@ -60,6 +61,7 @@ export async function PATCH(req: NextRequest) {
       category_id?: number | null;
       party?: string;
       party_role?: PartyRole;
+      party_kind?: PartyKind;
       confirmed?: boolean;
     };
   };
@@ -69,6 +71,9 @@ export async function PATCH(req: NextRequest) {
   }
   if (patch.party_role && !VALID_ROLES.includes(patch.party_role)) {
     return NextResponse.json({ error: "Invalid party_role" }, { status: 400 });
+  }
+  if (patch.party_kind && !VALID_KINDS.includes(patch.party_kind)) {
+    return NextResponse.json({ error: "Invalid party_kind" }, { status: 400 });
   }
 
   const sets: string[] = [];
@@ -85,6 +90,10 @@ export async function PATCH(req: NextRequest) {
   if ("party_role" in patch && patch.party_role) {
     sets.push("party_role = ?");
     args.push(patch.party_role);
+  }
+  if ("party_kind" in patch && patch.party_kind) {
+    sets.push("party_kind = ?");
+    args.push(patch.party_kind);
   }
   if ("confirmed" in patch) {
     sets.push("confirmed = ?");
@@ -115,6 +124,7 @@ export async function POST(req: NextRequest) {
   const amount = typeof body.amount === "number" ? body.amount : NaN;
   const categoryId = body.category_id != null ? Number(body.category_id) : null;
   const partyRole: PartyRole = VALID_ROLES.includes(body.party_role) ? body.party_role : "owner";
+  const partyKind: PartyKind = VALID_KINDS.includes(body.party_kind) ? body.party_kind : "person";
   const rawParty = typeof body.party === "string" ? body.party.trim() : "";
   const confirmed = body.confirmed ? 1 : 0;
 
@@ -128,7 +138,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "A non-zero amount is required" }, { status: 400 });
   }
   if (partyRole !== "owner" && !rawParty) {
-    return NextResponse.json({ error: "Person's name is required for this whose-money option" }, { status: 400 });
+    return NextResponse.json(
+      { error: partyKind === "account" ? "An account name is required for this whose-money option" : "Person's name is required for this whose-money option" },
+      { status: 400 }
+    );
   }
 
   const party = rawParty || "Me";
@@ -138,8 +151,8 @@ export async function POST(req: NextRequest) {
   try {
     const insert = await db.execute({
       sql: `INSERT INTO transactions
-              (upload_id, date, description, amount, category_id, party, party_role, confirmed, confirmed_at, dedupe_hash)
-            VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              (upload_id, date, description, amount, category_id, party, party_role, party_kind, confirmed, confirmed_at, dedupe_hash)
+            VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         date,
         description,
@@ -147,6 +160,7 @@ export async function POST(req: NextRequest) {
         categoryId,
         party,
         partyRole,
+        partyKind,
         confirmed,
         confirmed ? new Date().toISOString() : null,
         hash,

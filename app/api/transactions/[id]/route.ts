@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, rowsOf } from "@/lib/db";
-import { PartyRole } from "@/lib/types";
+import { PartyKind, PartyRole } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const VALID_ROLES: PartyRole[] = ["owner", "borrowed_from", "lent_to", "repaid_to", "repaid_by"];
+const VALID_KINDS: PartyKind[] = ["person", "account"];
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -29,6 +30,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
     sets.push("party_role = ?");
     args.push(body.party_role);
+  }
+  if ("party_kind" in body) {
+    if (!VALID_KINDS.includes(body.party_kind)) {
+      return NextResponse.json({ error: "Invalid party_kind" }, { status: 400 });
+    }
+    sets.push("party_kind = ?");
+    args.push(body.party_kind);
   }
   if ("date" in body && typeof body.date === "string") {
     sets.push("date = ?");

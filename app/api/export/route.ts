@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 import { getDb, rowsOf } from "@/lib/db";
 import { computeSummary, defaultRange } from "@/lib/summary";
-import { PARTY_ROLE_LABELS, PartyRole } from "@/lib/types";
+import { PARTY_ROLE_LABELS, PartyKind, PartyRole } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,10 +15,19 @@ interface TxRow {
   category_kind: string | null;
   party: string;
   party_role: PartyRole;
+  party_kind: PartyKind;
   confirmed: number;
 }
 
 const CURRENCY_FORMAT = '£#,##0.00;[Red]-£#,##0.00';
+
+function whoseMoneyLabel(role: PartyRole, kind: PartyKind): string {
+  if (kind === "account") {
+    if (role === "lent_to") return "Moved to my own account";
+    if (role === "repaid_by") return "Moved from my own account";
+  }
+  return PARTY_ROLE_LABELS[role];
+}
 
 export async function GET(req: NextRequest) {
   const db = await getDb();
@@ -29,7 +38,7 @@ export async function GET(req: NextRequest) {
 
   const txRs = await db.execute({
     sql: `SELECT t.date, t.description, t.amount, c.name as category_name, c.kind as category_kind,
-                 t.party, t.party_role, t.confirmed
+                 t.party, t.party_role, t.party_kind, t.confirmed
           FROM transactions t
           LEFT JOIN categories c ON c.id = t.category_id
           WHERE t.date >= ? AND t.date <= ?
@@ -99,6 +108,19 @@ export async function GET(req: NextRequest) {
   });
   loansSheet.getRow(1).font = { bold: true };
 
+  // --- Accounts sheet (transfers to/from other accounts you own) ---
+  const accountsSheet = workbook.addWorksheet("Accounts");
+  accountsSheet.columns = [
+    { header: "Account", key: "party", width: 20 },
+    { header: "Moved out", key: "movedOut", width: 16 },
+    { header: "Moved back", key: "movedBack", width: 16 },
+  ];
+  accountsSheet.addRows(summary.accounts);
+  ["movedOut", "movedBack"].forEach((key) => {
+    accountsSheet.getColumn(key).numFmt = CURRENCY_FORMAT;
+  });
+  accountsSheet.getRow(1).font = { bold: true };
+
   // --- Transactions sheet ---
   const txSheet = workbook.addWorksheet("Transactions");
   txSheet.columns = [
@@ -107,7 +129,7 @@ export async function GET(req: NextRequest) {
     { header: "Amount", key: "amount", width: 14 },
     { header: "Category", key: "category", width: 20 },
     { header: "Whose money", key: "whoseMoney", width: 24 },
-    { header: "Person", key: "person", width: 16 },
+    { header: "Person / Account", key: "person", width: 18 },
     { header: "Confirmed", key: "confirmed", width: 12 },
   ];
   txSheet.addRows(
@@ -116,7 +138,7 @@ export async function GET(req: NextRequest) {
       description: t.description,
       amount: t.amount,
       category: t.category_name || "Uncategorized",
-      whoseMoney: PARTY_ROLE_LABELS[t.party_role],
+      whoseMoney: whoseMoneyLabel(t.party_role, t.party_kind),
       person: t.party_role === "owner" ? "" : t.party,
       confirmed: t.confirmed ? "Yes" : "No",
     }))

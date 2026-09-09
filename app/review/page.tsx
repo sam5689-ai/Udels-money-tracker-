@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Category, CategoryKind, PartyRole } from "@/lib/types";
+import { Category, CategoryKind, PartyKind, PartyRole } from "@/lib/types";
 
 interface TxRow {
   id: number;
@@ -14,27 +14,37 @@ interface TxRow {
   category_kind: "income" | "expense" | "loan" | null;
   party: string;
   party_role: PartyRole;
+  party_kind: PartyKind;
   confirmed: number;
 }
 
 type Filter = "unconfirmed" | "confirmed" | "all";
 
-// The 5 underlying party_role values collapse into 3 relationships in the
-// UI: whether a given transaction is a loan or a repayment is already
-// implied by its amount's sign (money out vs. money in), so there's no
-// need to ask for that separately.
-type MoneyRelationship = "owner" | "owed_to_me" | "owed_by_me";
+// The 5 underlying party_role values collapse into 4 relationships in the
+// UI: whether a given transaction is a loan/transfer or a repayment is
+// already implied by its amount's sign (money out vs. money in), so
+// there's no need to ask for that separately. "Money lent" and "My own
+// account" share the exact same lent_to/repaid_by pair and sign logic —
+// the only difference is party_kind, i.e. whether `party` names another
+// person or one of your own accounts (so uploading both sides of a
+// transfer between two of your accounts never inflates income/expenses).
+type MoneyRelationship = "owner" | "owed_to_me" | "owed_by_me" | "own_account";
 
-function relationshipOf(role: PartyRole): MoneyRelationship {
+function relationshipOf(role: PartyRole, kind: PartyKind): MoneyRelationship {
   if (role === "owner") return "owner";
+  if (kind === "account") return "own_account";
   if (role === "lent_to" || role === "repaid_by") return "owed_to_me";
   return "owed_by_me"; // borrowed_from or repaid_to
 }
 
 function roleForRelationship(relationship: MoneyRelationship, amount: number): PartyRole {
   if (relationship === "owner") return "owner";
-  if (relationship === "owed_to_me") return amount < 0 ? "lent_to" : "repaid_by";
+  if (relationship === "owed_to_me" || relationship === "own_account") return amount < 0 ? "lent_to" : "repaid_by";
   return amount > 0 ? "borrowed_from" : "repaid_to";
+}
+
+function kindForRelationship(relationship: MoneyRelationship): PartyKind {
+  return relationship === "own_account" ? "account" : "person";
 }
 
 export default function ReviewPage() {
@@ -47,6 +57,7 @@ export default function ReviewPage() {
   const [bulkCategoryId, setBulkCategoryId] = useState<string>("");
   const [addFormOpen, setAddFormOpen] = useState(false);
   const [knownPeople, setKnownPeople] = useState<string[]>([]);
+  const [knownAccounts, setKnownAccounts] = useState<string[]>([]);
 
   const loadCategories = useCallback(async () => {
     const res = await fetch("/api/categories");
@@ -60,8 +71,20 @@ export default function ReviewPage() {
     setKnownPeople(data.people);
   }, []);
 
+  const loadAccounts = useCallback(async () => {
+    const res = await fetch("/api/people?kind=account");
+    const data = await res.json();
+    setKnownAccounts(data.people);
+  }, []);
+
   const addKnownPerson = useCallback((name: string) => {
     setKnownPeople((prev) =>
+      prev.some((p) => p.toLowerCase() === name.toLowerCase()) ? prev : [...prev, name].sort((a, b) => a.localeCompare(b))
+    );
+  }, []);
+
+  const addKnownAccount = useCallback((name: string) => {
+    setKnownAccounts((prev) =>
       prev.some((p) => p.toLowerCase() === name.toLowerCase()) ? prev : [...prev, name].sort((a, b) => a.localeCompare(b))
     );
   }, []);
@@ -85,6 +108,10 @@ export default function ReviewPage() {
   useEffect(() => {
     Promise.resolve().then(() => loadPeople());
   }, [loadPeople]);
+
+  useEffect(() => {
+    Promise.resolve().then(() => loadAccounts());
+  }, [loadAccounts]);
 
   useEffect(() => {
     Promise.resolve().then(() => loadTransactions());
@@ -212,6 +239,8 @@ export default function ReviewPage() {
           onAddCategory={addCategory}
           knownPeople={knownPeople}
           onNewPerson={addKnownPerson}
+          knownAccounts={knownAccounts}
+          onNewAccount={addKnownAccount}
           onCreated={() => {
             loadTransactions();
           }}
@@ -270,6 +299,8 @@ export default function ReviewPage() {
             onAddCategory={addCategory}
             knownPeople={knownPeople}
             onNewPerson={addKnownPerson}
+            knownAccounts={knownAccounts}
+            onNewAccount={addKnownAccount}
             canConfirm={canConfirm(t)}
           />
         ))}
@@ -320,6 +351,8 @@ export default function ReviewPage() {
                 onAddCategory={addCategory}
                 knownPeople={knownPeople}
                 onNewPerson={addKnownPerson}
+                knownAccounts={knownAccounts}
+                onNewAccount={addKnownAccount}
                 canConfirm={canConfirm(t)}
               />
             ))}
@@ -347,12 +380,16 @@ function AddTransactionForm({
   onAddCategory,
   knownPeople,
   onNewPerson,
+  knownAccounts,
+  onNewAccount,
   onCreated,
 }: {
   categories: Category[];
   onAddCategory: (name: string, kind: CategoryKind) => Promise<Category | null>;
   knownPeople: string[];
   onNewPerson: (name: string) => void;
+  knownAccounts: string[];
+  onNewAccount: (name: string) => void;
   onCreated: () => void;
 }) {
   const [draft, setDraft] = useState<TxRow>({
@@ -365,6 +402,7 @@ function AddTransactionForm({
     category_kind: null,
     party: "Me",
     party_role: "owner",
+    party_kind: "person",
     confirmed: 0,
   });
   const [amountText, setAmountText] = useState("");
@@ -383,7 +421,7 @@ function AddTransactionForm({
       // Keep the stored role consistent if a relationship is already picked
       // — flipping Out/In after choosing "Money lent" should still mean
       // "Money lent", just now expressed as a repayment instead of a loan.
-      party_role: roleForRelationship(relationshipOf(d.party_role), amount),
+      party_role: roleForRelationship(relationshipOf(d.party_role, d.party_kind), amount),
     }));
   }
 
@@ -405,7 +443,11 @@ function AddTransactionForm({
       return;
     }
     if (draft.party_role !== "owner" && !draft.party.trim()) {
-      setError("Person's name is required for this whose-money option");
+      setError(
+        draft.party_kind === "account"
+          ? "An account name is required for this whose-money option"
+          : "Person's name is required for this whose-money option"
+      );
       return;
     }
 
@@ -422,6 +464,7 @@ function AddTransactionForm({
         category_id: draft.category_id,
         party: draft.party,
         party_role: draft.party_role,
+        party_kind: draft.party_kind,
         confirmed: confirmNow,
       }),
     });
@@ -436,6 +479,7 @@ function AddTransactionForm({
         description: "",
         category_id: null,
         party_role: "owner",
+        party_kind: "person",
         party: "Me",
       }));
       setAmountText("");
@@ -532,6 +576,8 @@ function AddTransactionForm({
             onAddCategory={onAddCategory}
             knownPeople={knownPeople}
             onNewPerson={onNewPerson}
+            knownAccounts={knownAccounts}
+            onNewAccount={onNewAccount}
           />
         </div>
       </div>
@@ -563,6 +609,8 @@ interface PickerProps {
   onAddCategory: (name: string, kind: CategoryKind) => Promise<Category | null>;
   knownPeople: string[];
   onNewPerson: (name: string) => void;
+  knownAccounts: string[];
+  onNewAccount: (name: string) => void;
 }
 
 function CategoryPicker({
@@ -665,8 +713,9 @@ function CategoryPicker({
   );
 }
 
-function WhoseMoneyPicker({ t, onPatch, knownPeople, onNewPerson }: PickerProps) {
-  const relationship = relationshipOf(t.party_role);
+function WhoseMoneyPicker({ t, onPatch, knownPeople, onNewPerson, knownAccounts, onNewAccount }: PickerProps) {
+  const relationship = relationshipOf(t.party_role, t.party_kind);
+  const isAccount = relationship === "own_account";
 
   return (
     <div className="flex flex-col gap-1">
@@ -675,44 +724,64 @@ function WhoseMoneyPicker({ t, onPatch, knownPeople, onNewPerson }: PickerProps)
         onChange={(e) => {
           const rel = e.target.value as MoneyRelationship;
           const role = roleForRelationship(rel, t.amount);
-          onPatch({ party_role: role, party: rel === "owner" ? "Me" : t.party === "Me" ? "" : t.party });
+          const kind = kindForRelationship(rel);
+          const kindChanged = kind !== t.party_kind;
+          onPatch({
+            party_role: role,
+            party_kind: kind,
+            party: rel === "owner" ? "Me" : kindChanged || t.party === "Me" ? "" : t.party,
+          });
         }}
         className="w-full rounded-lg border border-violet-200 bg-white px-2 py-1 dark:border-white/10 dark:bg-zinc-950 md:w-48"
       >
         <option value="owner">My own money</option>
         <option value="owed_to_me">Money lent</option>
         <option value="owed_by_me">Money borrowed</option>
+        <option value="own_account">My own account</option>
       </select>
       {relationship !== "owner" && (
         <PersonPicker
           value={t.party === "Me" ? "" : t.party}
           onCommit={(name) => onPatch({ party: name })}
-          knownPeople={knownPeople}
-          onNewPerson={onNewPerson}
+          knownNames={isAccount ? knownAccounts : knownPeople}
+          onNewName={isAccount ? onNewAccount : onNewPerson}
+          otherKindNames={isAccount ? knownPeople : knownAccounts}
+          entityNoun={isAccount ? "account" : "person"}
+          placeholder={isAccount ? "Account name (e.g. Savings)" : "Person's name"}
         />
       )}
     </div>
   );
 }
 
-// Typeahead for the "person's name" field: suggests existing accounts (party
-// names already used on other transactions) as the user types, and requires
-// an explicit confirm before a name that doesn't match any of them is
-// treated as a brand-new account.
+// Typeahead for the person/account name field: suggests existing entries
+// of the same kind as the user types, and requires an explicit confirm
+// before a name that doesn't match any of them is treated as brand-new.
+// Also guards against naming collisions across kinds — e.g. typing
+// "Jordan" while picking "My own account" when "Jordan" already exists as
+// a person would otherwise silently mix a personal IOU and an account
+// transfer under the same ledger.
 function PersonPicker({
   value,
   onCommit,
-  knownPeople,
-  onNewPerson,
+  knownNames,
+  onNewName,
+  otherKindNames,
+  entityNoun,
+  placeholder,
 }: {
   value: string;
   onCommit: (name: string) => void;
-  knownPeople: string[];
-  onNewPerson: (name: string) => void;
+  knownNames: string[];
+  onNewName: (name: string) => void;
+  otherKindNames: string[];
+  entityNoun: "person" | "account";
+  placeholder: string;
 }) {
   const [text, setText] = useState(value);
   const [open, setOpen] = useState(false);
   const [pendingNew, setPendingNew] = useState(false);
+  const [collision, setCollision] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.resolve().then(() => setText(value));
@@ -720,14 +789,15 @@ function PersonPicker({
 
   const matches = useMemo(() => {
     const q = text.trim().toLowerCase();
-    if (!q) return knownPeople;
-    return knownPeople.filter((p) => p.toLowerCase().includes(q));
-  }, [text, knownPeople]);
+    if (!q) return knownNames;
+    return knownNames.filter((p) => p.toLowerCase().includes(q));
+  }, [text, knownNames]);
 
   function selectExisting(name: string) {
     setText(name);
     setOpen(false);
     setPendingNew(false);
+    setCollision(null);
     onCommit(name);
   }
 
@@ -737,21 +807,30 @@ function PersonPicker({
     if (!trimmed) {
       onCommit("");
       setPendingNew(false);
+      setCollision(null);
       return;
     }
-    const exact = knownPeople.find((p) => p.toLowerCase() === trimmed.toLowerCase());
+    const exact = knownNames.find((p) => p.toLowerCase() === trimmed.toLowerCase());
     if (exact) {
       setText(exact);
       onCommit(exact);
       setPendingNew(false);
-    } else if (trimmed !== value) {
-      setPendingNew(true);
+      setCollision(null);
+      return;
     }
+    const otherExact = otherKindNames.find((p) => p.toLowerCase() === trimmed.toLowerCase());
+    if (otherExact) {
+      setCollision(otherExact);
+      setPendingNew(false);
+      return;
+    }
+    setCollision(null);
+    if (trimmed !== value) setPendingNew(true);
   }
 
   function confirmNew() {
     const trimmed = text.trim();
-    onNewPerson(trimmed);
+    onNewName(trimmed);
     onCommit(trimmed);
     setPendingNew(false);
   }
@@ -761,16 +840,22 @@ function PersonPicker({
     setPendingNew(false);
   }
 
+  function dismissCollision() {
+    setText(value);
+    setCollision(null);
+  }
+
   return (
     <div className="relative w-full md:w-48">
       <input
         type="text"
-        placeholder="Person's name"
+        placeholder={placeholder}
         value={text}
         onChange={(e) => {
           setText(e.target.value);
           setOpen(true);
           setPendingNew(false);
+          setCollision(null);
         }}
         onFocus={() => setOpen(true)}
         onBlur={handleBlur}
@@ -793,7 +878,9 @@ function PersonPicker({
       )}
       {pendingNew && (
         <div className="mt-1 flex flex-col gap-1 rounded-xl border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
-          <span>No existing account for &quot;{text.trim()}&quot;.</span>
+          <span>
+            No existing {entityNoun} called &quot;{text.trim()}&quot;.
+          </span>
           <div className="flex gap-2">
             <button
               type="button"
@@ -801,7 +888,7 @@ function PersonPicker({
               onClick={confirmNew}
               className="rounded-full bg-amber-600 px-2 py-0.5 font-medium text-white hover:bg-amber-700"
             >
-              Create new account
+              {entityNoun === "account" ? "Create new account" : "Add this person"}
             </button>
             <button
               type="button"
@@ -812,6 +899,22 @@ function PersonPicker({
               Cancel
             </button>
           </div>
+        </div>
+      )}
+      {collision && (
+        <div className="mt-1 flex flex-col gap-1 rounded-xl border border-red-300 bg-red-50 p-2 text-xs text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+          <span>
+            &quot;{collision}&quot; is already used as {entityNoun === "account" ? "a person" : "an account"}. Pick a
+            different name.
+          </span>
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={dismissCollision}
+            className="self-start text-red-800 underline underline-offset-2 hover:text-red-950 dark:text-red-300"
+          >
+            OK
+          </button>
         </div>
       )}
     </div>
@@ -835,6 +938,8 @@ function RowDesktop({
   onAddCategory,
   knownPeople,
   onNewPerson,
+  knownAccounts,
+  onNewAccount,
   canConfirm,
 }: RowProps) {
   const isExpense = t.amount < 0;
@@ -864,6 +969,8 @@ function RowDesktop({
           onAddCategory={onAddCategory}
           knownPeople={knownPeople}
           onNewPerson={onNewPerson}
+          knownAccounts={knownAccounts}
+          onNewAccount={onNewAccount}
         />
       </td>
       <td className="px-3 py-2">
@@ -893,6 +1000,8 @@ function RowCard({
   onAddCategory,
   knownPeople,
   onNewPerson,
+  knownAccounts,
+  onNewAccount,
   canConfirm,
 }: RowProps) {
   const isExpense = t.amount < 0;
@@ -930,6 +1039,8 @@ function RowCard({
           onAddCategory={onAddCategory}
           knownPeople={knownPeople}
           onNewPerson={onNewPerson}
+          knownAccounts={knownAccounts}
+          onNewAccount={onNewAccount}
         />
       </div>
 

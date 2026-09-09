@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, rowsOf } from "@/lib/db";
-import { PartyRole } from "@/lib/types";
+import { PartyKind, PartyRole } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,6 +12,7 @@ interface Row {
   amount: number;
   party: string;
   party_role: PartyRole;
+  party_kind: PartyKind;
 }
 
 export interface LedgerEntry {
@@ -42,7 +43,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ nam
   const db = await getDb();
 
   const rs = await db.execute({
-    sql: `SELECT id, date, description, amount, party, party_role
+    sql: `SELECT id, date, description, amount, party, party_role, party_kind
           FROM transactions
           WHERE confirmed = 1 AND party_role != 'owner' AND party = ? COLLATE NOCASE
           ORDER BY date ASC, id ASC`,
@@ -55,9 +56,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ nam
   }
 
   let balance = 0;
+  let movedOut = 0;
+  let movedBack = 0;
   const ledger: LedgerEntry[] = rows.map((r) => {
     const delta = deltaFor(r.party_role, r.amount);
     balance += delta;
+    if (r.party_role === "lent_to") movedOut += Math.abs(r.amount);
+    else if (r.party_role === "repaid_by") movedBack += Math.abs(r.amount);
     return {
       id: r.id,
       date: r.date,
@@ -71,7 +76,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ nam
 
   return NextResponse.json({
     party: rows[0].party,
+    party_kind: rows[0].party_kind,
     balance: Math.round(balance * 100) / 100,
+    // Only meaningful for accounts, whose ledger can be fed from two
+    // different uploaded statements (see summary.ts) — a netted "balance"
+    // would be self-consistent but confusing there, so the ledger page
+    // shows these two plain totals instead for party_kind "account".
+    movedOut: Math.round(movedOut * 100) / 100,
+    movedBack: Math.round(movedBack * 100) / 100,
     ledger: [...ledger].reverse(), // most recent first
   });
 }

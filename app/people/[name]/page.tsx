@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { PartyRole } from "@/lib/types";
+import { PartyKind, PartyRole } from "@/lib/types";
 
 interface LedgerEntry {
   id: number;
@@ -17,7 +17,10 @@ interface LedgerEntry {
 
 interface AccountData {
   party: string;
+  party_kind: PartyKind;
   balance: number;
+  movedOut: number;
+  movedBack: number;
   ledger: LedgerEntry[];
 }
 
@@ -28,6 +31,16 @@ const ENTRY_LABEL: Record<PartyRole, string> = {
   borrowed_from: "You borrowed",
   repaid_to: "You repaid",
 };
+
+const ACCOUNT_ENTRY_LABEL: Partial<Record<PartyRole, string>> = {
+  lent_to: "Moved out",
+  repaid_by: "Moved back in",
+};
+
+function entryLabel(role: PartyRole, kind: PartyKind): string {
+  if (kind === "account") return ACCOUNT_ENTRY_LABEL[role] ?? ENTRY_LABEL[role];
+  return ENTRY_LABEL[role];
+}
 
 function currency(n: number): string {
   const sign = n < 0 ? "-" : "";
@@ -75,6 +88,8 @@ export default function PersonAccountPage() {
     );
   }
 
+  const isAccount = data.party_kind === "account";
+
   const balanceColor =
     data.balance > 0
       ? "text-green-600 dark:text-green-400"
@@ -98,16 +113,37 @@ export default function PersonAccountPage() {
           <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-fuchsia-500 text-sm font-bold text-white">
             {data.party.charAt(0).toUpperCase()}
           </span>
-          {data.party}&apos;s account
+          {isAccount ? data.party : `${data.party}'s account`}
         </h1>
       </div>
 
-      <div className="rounded-3xl border border-violet-100 bg-white p-5 shadow-[0_2px_24px_-6px_rgba(139,92,246,0.18)] dark:border-white/10 dark:bg-white/5 dark:shadow-none">
-        <div className="text-xs font-semibold uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">
-          Current balance
+      {isAccount ? (
+        <div className="grid grid-cols-2 gap-4">
+          <div className="rounded-3xl border border-violet-100 bg-white p-5 shadow-[0_2px_24px_-6px_rgba(139,92,246,0.18)] dark:border-white/10 dark:bg-white/5 dark:shadow-none">
+            <div className="text-xs font-semibold uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">
+              Moved out
+            </div>
+            <div className="mt-1 text-2xl font-semibold text-violet-950 dark:text-white">
+              {currency(data.movedOut)}
+            </div>
+          </div>
+          <div className="rounded-3xl border border-violet-100 bg-white p-5 shadow-[0_2px_24px_-6px_rgba(139,92,246,0.18)] dark:border-white/10 dark:bg-white/5 dark:shadow-none">
+            <div className="text-xs font-semibold uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">
+              Moved back
+            </div>
+            <div className="mt-1 text-2xl font-semibold text-violet-950 dark:text-white">
+              {currency(data.movedBack)}
+            </div>
+          </div>
         </div>
-        <div className={`mt-1 text-2xl font-semibold ${balanceColor}`}>{balanceLabel}</div>
-      </div>
+      ) : (
+        <div className="rounded-3xl border border-violet-100 bg-white p-5 shadow-[0_2px_24px_-6px_rgba(139,92,246,0.18)] dark:border-white/10 dark:bg-white/5 dark:shadow-none">
+          <div className="text-xs font-semibold uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">
+            Current balance
+          </div>
+          <div className={`mt-1 text-2xl font-semibold ${balanceColor}`}>{balanceLabel}</div>
+        </div>
+      )}
 
       <div className="rounded-3xl border border-violet-100 bg-white p-4 shadow-[0_2px_24px_-6px_rgba(139,92,246,0.12)] sm:p-5 dark:border-white/10 dark:bg-white/5 dark:shadow-none">
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">
@@ -121,7 +157,7 @@ export default function PersonAccountPage() {
                   {e.description}
                 </div>
                 <div className="text-xs text-zinc-500 dark:text-violet-200/50">
-                  {e.date} · {ENTRY_LABEL[e.party_role]}
+                  {e.date} · {entryLabel(e.party_role, data.party_kind)}
                 </div>
               </div>
               <div className="shrink-0 text-right">
@@ -132,7 +168,9 @@ export default function PersonAccountPage() {
                 >
                   {e.delta >= 0 ? "+" : "-"}£{Math.abs(e.delta).toFixed(2)}
                 </div>
-                <div className="text-xs text-zinc-500 dark:text-violet-200/50">balance {currency(e.balance)}</div>
+                {!isAccount && (
+                  <div className="text-xs text-zinc-500 dark:text-violet-200/50">balance {currency(e.balance)}</div>
+                )}
               </div>
             </div>
           ))}

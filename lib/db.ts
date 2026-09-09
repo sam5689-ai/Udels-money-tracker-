@@ -50,6 +50,7 @@ async function migrate(db: Client) {
       party TEXT NOT NULL DEFAULT 'Me',
       party_role TEXT NOT NULL DEFAULT 'owner'
         CHECK (party_role IN ('owner','borrowed_from','lent_to','repaid_to','repaid_by')),
+      party_kind TEXT NOT NULL DEFAULT 'person' CHECK (party_kind IN ('person','account')),
       confirmed INTEGER NOT NULL DEFAULT 0,
       confirmed_at TEXT,
       dedupe_hash TEXT NOT NULL UNIQUE,
@@ -95,9 +96,21 @@ async function seedCategories(db: Client) {
   );
 }
 
+// `CREATE TABLE IF NOT EXISTS` in migrate() only shapes a brand-new
+// database — it never touches a table that already exists, so a column
+// added after the app was first deployed needs its own guarded ALTER.
+async function ensurePartyKindColumn(db: Client) {
+  const info = await db.execute("PRAGMA table_info(transactions)");
+  const hasColumn = rowsOf<{ name: string }>(info).some((c) => c.name === "party_kind");
+  if (!hasColumn) {
+    await db.execute("ALTER TABLE transactions ADD COLUMN party_kind TEXT NOT NULL DEFAULT 'person'");
+  }
+}
+
 async function initDb(): Promise<Client> {
   const db = createDb();
   await migrate(db);
+  await ensurePartyKindColumn(db);
   await seedCategories(db);
   return db;
 }

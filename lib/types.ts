@@ -2,6 +2,14 @@ export type CategoryKind = "income" | "expense" | "loan";
 
 export type PartyRole = "owner" | "borrowed_from" | "lent_to" | "repaid_to" | "repaid_by";
 
+// Whether `party` names another person (for loans/IOUs) or one of the
+// user's own accounts (for transfers to/from savings, ISAs, etc.). Reuses
+// the exact same lent_to/repaid_by sign-derived PartyRole pair either way —
+// "money lent to Savings" and "money lent to Jordan" have identical
+// running-balance math, they just mean different things and belong in
+// different UI buckets.
+export type PartyKind = "person" | "account";
+
 export interface Category {
   id: number;
   name: string;
@@ -18,6 +26,7 @@ export interface Transaction {
   category_id: number | null;
   party: string;
   party_role: PartyRole;
+  party_kind: PartyKind;
   confirmed: number;
   confirmed_at: string | null;
   dedupe_hash: string;
