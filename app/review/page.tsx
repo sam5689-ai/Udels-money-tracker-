@@ -381,8 +381,8 @@ function AddTransactionForm({
       ...d,
       amount,
       // Keep the stored role consistent if a relationship is already picked
-      // — flipping Out/In after choosing "They owe me" should still mean
-      // "They owe me", just now expressed as a repayment instead of a loan.
+      // — flipping Out/In after choosing "Money lent" should still mean
+      // "Money lent", just now expressed as a repayment instead of a loan.
       party_role: roleForRelationship(relationshipOf(d.party_role), amount),
     }));
   }
@@ -680,8 +680,8 @@ function WhoseMoneyPicker({ t, onPatch, knownPeople, onNewPerson }: PickerProps)
         className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-950 md:w-48"
       >
         <option value="owner">My own money</option>
-        <option value="owed_to_me">They owe me</option>
-        <option value="owed_by_me">I owe them</option>
+        <option value="owed_to_me">Money lent</option>
+        <option value="owed_by_me">Money borrowed</option>
       </select>
       {relationship !== "owner" && (
         <PersonPicker
