@@ -187,7 +187,87 @@ export default function CategoriesPage() {
         )}
         {loading && <div className="px-4 py-10 text-center text-sm text-zinc-500">Loading…</div>}
       </div>
+
+      <ClearDataSection />
     </main>
+  );
+}
+
+function ClearDataSection() {
+  const [open, setOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [clearing, setClearing] = useState(false);
+  const [done, setDone] = useState(false);
+
+  async function clearData() {
+    setClearing(true);
+    const res = await fetch("/api/data", { method: "DELETE" });
+    setClearing(false);
+    if (res.ok) {
+      setOpen(false);
+      setConfirmText("");
+      setDone(true);
+    } else {
+      alert("Could not clear data");
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-red-300 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950">
+      <h2 className="text-sm font-semibold text-red-800 dark:text-red-300">Danger zone</h2>
+      <p className="mt-1 text-sm text-red-700 dark:text-red-400">
+        Permanently delete every transaction, upload record, and manually-added account
+        (people). Your categories are kept. This cannot be undone.
+      </p>
+
+      {done && (
+        <p className="mt-2 text-sm font-medium text-green-700 dark:text-green-400">
+          All transactions and accounts have been cleared.
+        </p>
+      )}
+
+      {!open ? (
+        <button
+          onClick={() => {
+            setOpen(true);
+            setDone(false);
+          }}
+          className="mt-3 rounded-md border border-red-400 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-zinc-950 dark:text-red-300 dark:hover:bg-red-900/40"
+        >
+          Clear all data…
+        </button>
+      ) : (
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <label className="text-sm text-red-700 dark:text-red-400">
+            Type <span className="font-mono font-semibold">DELETE</span> to confirm:
+          </label>
+          <input
+            type="text"
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            className="w-full rounded-md border border-red-300 bg-white px-2 py-1 text-sm dark:border-red-800 dark:bg-zinc-950 sm:w-32"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={clearData}
+              disabled={confirmText !== "DELETE" || clearing}
+              className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 hover:bg-red-700"
+            >
+              {clearing ? "Clearing…" : "Clear all data"}
+            </button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                setConfirmText("");
+              }}
+              className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
