@@ -58,6 +58,25 @@ function monthLabel(m: string): string {
   });
 }
 
+const BUCKET_ICONS: Record<BucketKey, React.ReactNode> = {
+  spending: (
+    <>
+      <rect x="3" y="6" width="18" height="13" rx="3" />
+      <path strokeLinecap="round" d="M3 10h18" />
+      <circle cx="16" cy="14.5" r="1.2" fill="currentColor" stroke="none" />
+    </>
+  ),
+  lentOut: <path strokeLinecap="round" strokeLinejoin="round" d="M7 17L17 7M7 7h10v10" />,
+  everythingElse: (
+    <>
+      <rect x="4" y="4" width="7" height="7" rx="1.5" />
+      <rect x="13" y="4" width="7" height="7" rx="1.5" />
+      <rect x="4" y="13" width="7" height="7" rx="1.5" />
+      <rect x="13" y="13" width="7" height="7" rx="1.5" />
+    </>
+  ),
+};
+
 export default function DashboardPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [categoryTab, setCategoryTab] = useState<"expense" | "income">("expense");
@@ -72,7 +91,7 @@ export default function DashboardPage() {
 
   if (!summary) {
     return (
-      <main className="mx-auto flex w-full max-w-5xl flex-1 items-center justify-center px-4 py-12 text-sm text-zinc-500 sm:px-6">
+      <main className="mx-auto flex w-full max-w-5xl flex-1 items-center justify-center px-4 py-12 text-sm text-zinc-500 dark:text-violet-200/50 sm:px-6">
         Loading…
       </main>
     );
@@ -92,8 +111,8 @@ export default function DashboardPage() {
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Dashboard</h1>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          <h1 className="text-2xl font-semibold text-violet-950 dark:text-white">Dashboard</h1>
+          <p className="mt-1 text-sm text-zinc-600 dark:text-violet-200/60">
             {summary.range.from} to {summary.range.to} · confirmed transactions only
           </p>
         </div>
@@ -101,7 +120,7 @@ export default function DashboardPage() {
           {summary.unconfirmedCount > 0 && (
             <Link
               href="/review"
-              className="rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-center text-sm text-amber-900 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+              className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-center text-sm text-amber-900 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
             >
               {summary.unconfirmedCount} transaction{summary.unconfirmedCount === 1 ? "" : "s"} still
               need review
@@ -109,7 +128,7 @@ export default function DashboardPage() {
           )}
           <a
             href={`/api/export?from=${summary.range.from}&to=${summary.range.to}`}
-            className="rounded-md bg-zinc-900 px-3 py-1.5 text-center text-sm font-medium text-white hover:bg-zinc-700 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+            className="rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 px-3 py-1.5 text-center text-sm font-medium text-white shadow-sm shadow-violet-300/50 hover:from-violet-500 hover:to-fuchsia-400 dark:shadow-none"
           >
             Download report (.xlsx)
           </a>
@@ -118,6 +137,7 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-3">
         <BucketTile
+          bucketKey="spending"
           label="My spending"
           hint="Your own expenses — no one else involved"
           value={summary.buckets.spending.total}
@@ -126,6 +146,7 @@ export default function DashboardPage() {
           onClick={() => setExpandedBucket((k) => (k === "spending" ? null : "spending"))}
         />
         <BucketTile
+          bucketKey="lentOut"
           label="Lent out"
           hint="Owed back to you"
           value={summary.buckets.lentOut.total}
@@ -134,6 +155,7 @@ export default function DashboardPage() {
           onClick={() => setExpandedBucket((k) => (k === "lentOut" ? null : "lentOut"))}
         />
         <BucketTile
+          bucketKey="everythingElse"
           label="Everything else"
           hint="Income, borrowed money, repayments"
           value={summary.buckets.everythingElse.total}
@@ -157,8 +179,8 @@ export default function DashboardPage() {
         />
       )}
 
-      <section className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-800 dark:bg-zinc-950">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+      <section className="rounded-3xl border border-violet-100 bg-white p-4 shadow-[0_2px_24px_-6px_rgba(139,92,246,0.12)] sm:p-5 dark:border-white/10 dark:bg-white/5 dark:shadow-none">
+        <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">
           Income vs. expenses by month
         </h2>
         {summary.monthly.length === 0 ? (
@@ -177,8 +199,9 @@ export default function DashboardPage() {
               <Tooltip
                 formatter={(value) => currency(Number(value))}
                 contentStyle={{
-                  background: isDark ? "#1a1a19" : "#fcfcfb",
-                  border: `1px solid ${grid}`,
+                  background: isDark ? "#1a1229" : "#ffffff",
+                  border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "#ede9fe"}`,
+                  borderRadius: 12,
                   color: ink,
                   fontSize: 13,
                 }}
@@ -191,9 +214,9 @@ export default function DashboardPage() {
         )}
       </section>
 
-      <section className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-800 dark:bg-zinc-950">
+      <section className="rounded-3xl border border-violet-100 bg-white p-4 shadow-[0_2px_24px_-6px_rgba(139,92,246,0.12)] sm:p-5 dark:border-white/10 dark:bg-white/5 dark:shadow-none">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">
             By category
           </h2>
           <div className="flex gap-1">
@@ -203,8 +226,8 @@ export default function DashboardPage() {
                 onClick={() => setCategoryTab(tab)}
                 className={`rounded-full px-3 py-1 text-xs font-medium ${
                   categoryTab === tab
-                    ? "bg-zinc-900 text-white dark:bg-white dark:text-black"
-                    : "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                    ? "bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white"
+                    : "bg-violet-50 text-violet-700 dark:bg-white/10 dark:text-violet-200"
                 }`}
               >
                 {tab === "expense" ? "Expenses" : "Income"}
@@ -230,8 +253,9 @@ export default function DashboardPage() {
               <Tooltip
                 formatter={(value) => currency(Number(value))}
                 contentStyle={{
-                  background: isDark ? "#1a1a19" : "#fcfcfb",
-                  border: `1px solid ${grid}`,
+                  background: isDark ? "#1a1229" : "#ffffff",
+                  border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "#ede9fe"}`,
+                  borderRadius: 12,
                   color: ink,
                   fontSize: 13,
                 }}
@@ -250,8 +274,8 @@ export default function DashboardPage() {
       </section>
 
       {summary.loans.length > 0 && (
-        <section className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-800 dark:bg-zinc-950">
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+        <section className="rounded-3xl border border-violet-100 bg-white p-4 shadow-[0_2px_24px_-6px_rgba(139,92,246,0.12)] sm:p-5 dark:border-white/10 dark:bg-white/5 dark:shadow-none">
+          <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">
             Loans &amp; IOUs
           </h2>
           {/* Mobile: cards */}
@@ -259,26 +283,26 @@ export default function DashboardPage() {
             {summary.loans.map((l) => (
               <div
                 key={l.party}
-                className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800"
+                className="rounded-2xl border border-violet-100 p-3 dark:border-white/10"
               >
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <Link
                     href={`/people/${encodeURIComponent(l.party)}`}
-                    className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-50"
+                    className="font-medium text-violet-700 hover:text-violet-900 dark:text-violet-200 dark:hover:text-white"
                   >
                     {l.party}
                   </Link>
                   <span
-                    className="text-sm font-semibold"
+                    className="rounded-full px-2.5 py-0.5 text-xs font-semibold"
                     style={{
-                      color:
-                        l.net >= 0 ? (isDark ? DELTA.good.dark : DELTA.good.light) : (isDark ? DELTA.bad.dark : DELTA.bad.light),
+                      color: l.net >= 0 ? (isDark ? DELTA.good.dark : DELTA.good.light) : (isDark ? DELTA.bad.dark : DELTA.bad.light),
+                      background: l.net >= 0 ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.12)",
                     }}
                   >
                     {l.net >= 0 ? `Owes you ${currency(l.net)}` : `You owe ${currency(-l.net)}`}
                   </span>
                 </div>
-                <div className="mt-1 flex gap-4 text-xs text-zinc-500">
+                <div className="mt-1 flex gap-4 text-xs text-zinc-500 dark:text-violet-200/50">
                   <span>You owe them: {currency(l.youOweThem)}</span>
                   <span>They owe you: {currency(l.theyOweYou)}</span>
                 </div>
@@ -288,29 +312,25 @@ export default function DashboardPage() {
 
           {/* Desktop: table */}
           <table className="hidden w-full text-sm md:table">
-            <thead className="text-left text-zinc-500">
+            <thead className="text-left text-zinc-500 dark:text-violet-200/50">
               <tr>
                 <th className="pb-2 font-medium">Person</th>
                 <th className="pb-2 font-medium text-right">You owe them</th>
                 <th className="pb-2 font-medium text-right">They owe you</th>
                 <th className="pb-2 font-medium text-right">Net</th>
+                <th className="pb-2 font-medium"></th>
               </tr>
             </thead>
             <tbody>
               {summary.loans.map((l) => (
-                <tr key={l.party} className="border-t border-zinc-200 dark:border-zinc-800">
-                  <td className="py-2 font-medium text-zinc-900 dark:text-zinc-50">
-                    <Link
-                      href={`/people/${encodeURIComponent(l.party)}`}
-                      className="underline underline-offset-2"
-                    >
-                      {l.party}
-                    </Link>
+                <tr key={l.party} className="border-t border-violet-100 dark:border-white/10">
+                  <td className="py-2 font-medium text-violet-950 dark:text-white">
+                    {l.party}
                   </td>
-                  <td className="py-2 text-right text-zinc-600 dark:text-zinc-400">
+                  <td className="py-2 text-right text-zinc-600 dark:text-violet-200/60">
                     {currency(l.youOweThem)}
                   </td>
-                  <td className="py-2 text-right text-zinc-600 dark:text-zinc-400">
+                  <td className="py-2 text-right text-zinc-600 dark:text-violet-200/60">
                     {currency(l.theyOweYou)}
                   </td>
                   <td
@@ -318,6 +338,14 @@ export default function DashboardPage() {
                     style={{ color: l.net >= 0 ? (isDark ? DELTA.good.dark : DELTA.good.light) : (isDark ? DELTA.bad.dark : DELTA.bad.light) }}
                   >
                     {l.net >= 0 ? `${l.party} owes you ${currency(l.net)}` : `You owe ${l.party} ${currency(-l.net)}`}
+                  </td>
+                  <td className="py-2 pl-3 text-right">
+                    <Link
+                      href={`/people/${encodeURIComponent(l.party)}`}
+                      className="inline-block rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700 hover:bg-violet-100 dark:bg-white/10 dark:text-violet-200 dark:hover:bg-white/20"
+                    >
+                      View ledger →
+                    </Link>
                   </td>
                 </tr>
               ))}
@@ -330,6 +358,7 @@ export default function DashboardPage() {
 }
 
 function BucketTile({
+  bucketKey,
   label,
   hint,
   value,
@@ -337,6 +366,7 @@ function BucketTile({
   active,
   onClick,
 }: {
+  bucketKey: BucketKey;
   label: string;
   hint: string;
   value: number;
@@ -347,17 +377,22 @@ function BucketTile({
   return (
     <button
       onClick={onClick}
-      className={`rounded-xl border bg-white p-4 text-left transition-colors sm:p-5 dark:bg-zinc-950 ${
+      className={`rounded-3xl border bg-white p-4 text-left transition-all sm:p-5 dark:bg-white/5 ${
         active
-          ? "border-zinc-900 ring-1 ring-zinc-900 dark:border-white dark:ring-white"
-          : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700"
+          ? "border-transparent shadow-[0_0_0_2px_#8b5cf6,0_8px_28px_-8px_rgba(139,92,246,0.4)]"
+          : "border-violet-100 shadow-[0_2px_20px_-6px_rgba(139,92,246,0.12)] hover:border-violet-200 dark:border-white/10 dark:shadow-none dark:hover:border-white/20"
       }`}
     >
-      <div className="text-sm font-medium text-zinc-500">{label}</div>
+      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-500 text-white">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5">
+          {BUCKET_ICONS[bucketKey]}
+        </svg>
+      </span>
+      <div className="mt-3 text-sm font-medium text-zinc-500 dark:text-violet-200/60">{label}</div>
       <div className="mt-1 text-2xl font-semibold" style={{ color }}>
         {currency(value)}
       </div>
-      <div className="mt-1 text-xs text-zinc-500">{hint} · tap to see transactions</div>
+      <div className="mt-1 text-xs text-zinc-500 dark:text-violet-200/50">{hint} · tap to see transactions</div>
     </button>
   );
 }
@@ -372,14 +407,14 @@ function BucketDetail({
   onClose: () => void;
 }) {
   return (
-    <section className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-800 dark:bg-zinc-950">
+    <section className="rounded-3xl border border-violet-100 bg-white p-4 shadow-[0_2px_24px_-6px_rgba(139,92,246,0.12)] sm:p-5 dark:border-white/10 dark:bg-white/5 dark:shadow-none">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">
           {label} — {bucket.transactions.length} transaction{bucket.transactions.length === 1 ? "" : "s"}
         </h2>
         <button
           onClick={onClose}
-          className="text-xs font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+          className="text-xs font-medium text-violet-500 hover:text-violet-800 dark:text-violet-300 dark:hover:text-violet-100"
         >
           Close
         </button>
@@ -387,14 +422,14 @@ function BucketDetail({
       {bucket.transactions.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="flex flex-col divide-y divide-zinc-200 dark:divide-zinc-800">
+        <div className="flex flex-col divide-y divide-violet-100 dark:divide-white/10">
           {bucket.transactions.map((t) => (
             <div key={t.id} className="flex items-center justify-between gap-3 py-2 text-sm">
               <div className="min-w-0">
-                <div className="truncate font-medium text-zinc-900 dark:text-zinc-50">
+                <div className="truncate font-medium text-violet-950 dark:text-white">
                   {t.description}
                 </div>
-                <div className="text-xs text-zinc-500">
+                <div className="text-xs text-zinc-500 dark:text-violet-200/50">
                   {t.date}
                   {t.category ? ` · ${t.category}` : ""}
                 </div>
@@ -416,7 +451,7 @@ function BucketDetail({
 
 function EmptyState() {
   return (
-    <p className="py-10 text-center text-sm text-zinc-500">
+    <p className="py-10 text-center text-sm text-zinc-500 dark:text-violet-200/50">
       No confirmed transactions in this period yet.
     </p>
   );

@@ -53,42 +53,47 @@ function LoginForm() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-6 py-12">
-      <div>
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Sign in</h1>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          Enter the password to access Udel&apos;s Money Tracker.
-        </p>
+    <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-6 py-12">
+      <div className="rounded-3xl border border-violet-100 bg-white p-7 shadow-[0_4px_32px_-8px_rgba(139,92,246,0.2)] dark:border-white/10 dark:bg-white/5 dark:shadow-none">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-fuchsia-500 text-lg font-bold text-white shadow-sm shadow-violet-300/60 dark:shadow-none">
+            U
+          </span>
+          <h1 className="text-xl font-semibold text-violet-950 dark:text-white">Sign in</h1>
+          <p className="mt-1 text-sm text-zinc-600 dark:text-violet-200/60">
+            Enter the password to access Udel&apos;s Money Tracker.
+          </p>
+        </div>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          {error && (
+            <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm font-medium text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+              {error}
+            </div>
+          )}
+          <input
+            type="password"
+            autoFocus
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              if (error) setError("");
+            }}
+            placeholder="Password"
+            className={`rounded-xl border bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 dark:bg-zinc-900 dark:focus:ring-violet-500/30 ${
+              error
+                ? "border-red-400 dark:border-red-700"
+                : "border-violet-200 dark:border-white/10"
+            }`}
+          />
+          <button
+            type="submit"
+            disabled={busy || !password}
+            className="rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-500 px-3 py-2.5 text-sm font-medium text-white shadow-sm shadow-violet-300/50 hover:from-violet-500 hover:to-fuchsia-400 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-none"
+          >
+            {busy ? "Checking…" : "Sign in"}
+          </button>
+        </form>
       </div>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        {error && (
-          <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm font-medium text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
-            {error}
-          </div>
-        )}
-        <input
-          type="password"
-          autoFocus
-          value={password}
-          onChange={(e) => {
-            setPassword(e.target.value);
-            if (error) setError("");
-          }}
-          placeholder="Password"
-          className={`rounded-md border bg-white px-3 py-2 text-sm dark:bg-zinc-950 ${
-            error
-              ? "border-red-400 dark:border-red-700"
-              : "border-zinc-300 dark:border-zinc-700"
-          }`}
-        />
-        <button
-          type="submit"
-          disabled={busy || !password}
-          className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black"
-        >
-          {busy ? "Checking…" : "Sign in"}
-        </button>
-      </form>
     </main>
   );
 }

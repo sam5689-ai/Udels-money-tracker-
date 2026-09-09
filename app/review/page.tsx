@@ -160,10 +160,10 @@ export default function ReviewPage() {
     <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+          <h1 className="text-2xl font-semibold text-violet-950 dark:text-white">
             Review transactions
           </h1>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="mt-1 text-sm text-zinc-600 dark:text-violet-200/60">
             Set a category and confirm whose money it was for each transaction.
           </p>
         </div>
@@ -172,7 +172,7 @@ export default function ReviewPage() {
           placeholder="Search description…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 sm:w-64"
+          className="w-full rounded-xl border border-violet-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 dark:border-white/10 dark:bg-zinc-950 dark:focus:ring-violet-500/30 sm:w-64"
         />
       </div>
 
@@ -183,8 +183,8 @@ export default function ReviewPage() {
             onClick={() => setFilter(f)}
             className={`rounded-full px-3 py-1 text-sm font-medium ${
               filter === f
-                ? "bg-zinc-900 text-white dark:bg-white dark:text-black"
-                : "bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                ? "bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white shadow-sm shadow-violet-300/50 dark:shadow-none"
+                : "bg-violet-50 text-violet-700 hover:bg-violet-100 dark:bg-white/10 dark:text-violet-200 dark:hover:bg-white/20"
             }`}
           >
             {f === "unconfirmed" ? "Needs review" : f === "confirmed" ? "Confirmed" : "All"}
@@ -193,13 +193,13 @@ export default function ReviewPage() {
         <div className="ml-auto flex items-center gap-4">
           <button
             onClick={() => setAddFormOpen((v) => !v)}
-            className="text-sm font-medium text-zinc-600 underline underline-offset-2 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+            className="text-sm font-medium text-violet-600 hover:text-violet-800 dark:text-violet-300 dark:hover:text-violet-100"
           >
             {addFormOpen ? "Cancel" : "+ Add transaction"}
           </button>
           <Link
             href="/categories"
-            className="text-sm font-medium text-zinc-600 underline underline-offset-2 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+            className="text-sm font-medium text-violet-600 hover:text-violet-800 dark:text-violet-300 dark:hover:text-violet-100"
           >
             Manage categories
           </Link>
@@ -219,15 +219,15 @@ export default function ReviewPage() {
       )}
 
       {selected.size > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-300 bg-zinc-100 p-3 text-sm dark:border-zinc-700 dark:bg-zinc-900">
-          <span className="font-medium">{selected.size} selected</span>
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-violet-200 bg-violet-50 p-3 text-sm dark:border-white/10 dark:bg-white/5">
+          <span className="font-medium text-violet-950 dark:text-white">{selected.size} selected</span>
           <select
             value={bulkCategoryId}
             onChange={(e) => {
               setBulkCategoryId(e.target.value);
               if (e.target.value) bulkAction({ category_id: Number(e.target.value) });
             }}
-            className="rounded-md border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-950"
+            className="rounded-lg border border-violet-200 px-2 py-1 dark:border-white/10 dark:bg-zinc-950"
           >
             <option value="">Set category…</option>
             {categories.map((c) => (
@@ -238,7 +238,7 @@ export default function ReviewPage() {
           </select>
           <button
             onClick={() => bulkAction({ confirmed: true })}
-            className="rounded-md bg-green-600 px-3 py-1 font-medium text-white hover:bg-green-700"
+            className="rounded-full bg-green-600 px-3 py-1 font-medium text-white hover:bg-green-700"
           >
             Confirm selected
           </button>
@@ -246,7 +246,7 @@ export default function ReviewPage() {
       )}
 
       {!loading && transactions.length > 1 && (
-        <label className="flex items-center gap-2 text-sm text-zinc-600 md:hidden dark:text-zinc-400">
+        <label className="flex items-center gap-2 text-sm text-zinc-600 md:hidden dark:text-violet-200/60">
           <input
             type="checkbox"
             checked={selected.size > 0 && selected.size === transactions.length}
@@ -274,23 +274,23 @@ export default function ReviewPage() {
           />
         ))}
         {!loading && transactions.length === 0 && (
-          <div className="rounded-lg border border-zinc-200 px-4 py-10 text-center text-sm text-zinc-500 dark:border-zinc-800">
+          <div className="rounded-2xl border border-violet-100 px-4 py-10 text-center text-sm text-zinc-500 dark:border-white/10 dark:text-violet-200/50">
             {filter === "unconfirmed"
               ? "Nothing left to review. Nice work!"
               : "No transactions found."}
           </div>
         )}
         {loading && (
-          <div className="rounded-lg border border-zinc-200 px-4 py-10 text-center text-sm text-zinc-500 dark:border-zinc-800">
+          <div className="rounded-2xl border border-violet-100 px-4 py-10 text-center text-sm text-zinc-500 dark:border-white/10 dark:text-violet-200/50">
             Loading…
           </div>
         )}
       </div>
 
       {/* Desktop: table */}
-      <div className="hidden overflow-x-auto rounded-lg border border-zinc-200 md:block dark:border-zinc-800">
+      <div className="hidden overflow-x-auto rounded-2xl border border-violet-100 bg-white shadow-[0_2px_24px_-6px_rgba(139,92,246,0.12)] md:block dark:border-white/10 dark:bg-white/5 dark:shadow-none">
         <table className="w-full min-w-[900px] text-sm">
-          <thead className="bg-zinc-100 text-left text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+          <thead className="bg-violet-50/70 text-left text-zinc-600 dark:bg-white/5 dark:text-violet-200/60">
             <tr>
               <th className="px-3 py-2">
                 <input
@@ -326,13 +326,13 @@ export default function ReviewPage() {
           </tbody>
         </table>
         {!loading && transactions.length === 0 && (
-          <div className="px-4 py-10 text-center text-sm text-zinc-500">
+          <div className="px-4 py-10 text-center text-sm text-zinc-500 dark:text-violet-200/50">
             {filter === "unconfirmed"
               ? "Nothing left to review. Nice work!"
               : "No transactions found."}
           </div>
         )}
-        {loading && <div className="px-4 py-10 text-center text-sm text-zinc-500">Loading…</div>}
+        {loading && <div className="px-4 py-10 text-center text-sm text-zinc-500 dark:text-violet-200/50">Loading…</div>}
       </div>
     </main>
   );
@@ -448,25 +448,25 @@ function AddTransactionForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+      className="flex flex-col gap-3 rounded-3xl border border-violet-100 bg-white p-4 shadow-[0_2px_24px_-6px_rgba(139,92,246,0.15)] dark:border-white/10 dark:bg-white/5 dark:shadow-none"
     >
       {error && (
-        <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+        <div className="rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
           {error}
         </div>
       )}
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium uppercase tracking-wide text-zinc-500">Date</label>
+          <label className="text-xs font-medium uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">Date</label>
           <input
             type="date"
             value={draft.date}
             onChange={(e) => patchDraft({ date: e.target.value })}
-            className="rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-xl border border-violet-200 bg-white px-2 py-1.5 text-sm dark:border-white/10 dark:bg-zinc-900"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+          <label className="text-xs font-medium uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">
             Description
           </label>
           <input
@@ -474,20 +474,20 @@ function AddTransactionForm({
             placeholder="e.g. Tesco, Rent, Dinner with Sam"
             value={draft.description}
             onChange={(e) => patchDraft({ description: e.target.value })}
-            className="rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-xl border border-violet-200 bg-white px-2 py-1.5 text-sm dark:border-white/10 dark:bg-zinc-900"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium uppercase tracking-wide text-zinc-500">Amount</label>
+          <label className="text-xs font-medium uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">Amount</label>
           <div className="flex gap-2">
-            <div className="flex overflow-hidden rounded-md border border-zinc-300 dark:border-zinc-700">
+            <div className="flex overflow-hidden rounded-xl border border-violet-200 dark:border-white/10">
               <button
                 type="button"
                 onClick={() => setDirection(-1)}
                 className={`px-3 py-1.5 text-sm font-medium ${
                   draft.amount < 0
                     ? "bg-red-600 text-white"
-                    : "bg-white text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400"
+                    : "bg-white text-zinc-600 dark:bg-zinc-900 dark:text-violet-200/60"
                 }`}
               >
                 − Out
@@ -498,7 +498,7 @@ function AddTransactionForm({
                 className={`px-3 py-1.5 text-sm font-medium ${
                   draft.amount > 0
                     ? "bg-green-600 text-white"
-                    : "bg-white text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400"
+                    : "bg-white text-zinc-600 dark:bg-zinc-900 dark:text-violet-200/60"
                 }`}
               >
                 + In
@@ -511,18 +511,18 @@ function AddTransactionForm({
               placeholder="0.00"
               value={amountText}
               onChange={(e) => setAmountText(e.target.value)}
-              className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="w-full rounded-xl border border-violet-200 bg-white px-2 py-1.5 text-sm dark:border-white/10 dark:bg-zinc-900"
             />
           </div>
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+          <label className="text-xs font-medium uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">
             Category
           </label>
           <CategoryPicker t={draft} categories={categories} onPatch={patchDraft} onAddCategory={onAddCategory} />
         </div>
         <div className="flex flex-col gap-1 sm:col-span-2">
-          <label className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+          <label className="text-xs font-medium uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">
             Whose money
           </label>
           <WhoseMoneyPicker
@@ -536,7 +536,7 @@ function AddTransactionForm({
         </div>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+        <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-violet-200/60">
           <input
             type="checkbox"
             checked={confirmNow}
@@ -547,7 +547,7 @@ function AddTransactionForm({
         <button
           type="submit"
           disabled={saving}
-          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black"
+          className="rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 px-4 py-2 text-sm font-medium text-white shadow-sm shadow-violet-300/50 hover:from-violet-500 hover:to-fuchsia-400 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-none"
         >
           {saving ? "Adding…" : "Add transaction"}
         </button>
@@ -612,13 +612,13 @@ function CategoryPicker({
               cancelNewCategory();
             }
           }}
-          className="rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-950"
+          className="rounded-lg border border-violet-200 bg-white px-2 py-1 dark:border-white/10 dark:bg-zinc-950"
         />
         <div className="flex items-center gap-1">
           <select
             value={newCatKind}
             onChange={(e) => setNewCatKind(e.target.value as CategoryKind)}
-            className="rounded-md border border-zinc-300 bg-white px-1 py-0.5 text-xs dark:border-zinc-700 dark:bg-zinc-950"
+            className="rounded-lg border border-violet-200 bg-white px-1 py-0.5 text-xs dark:border-white/10 dark:bg-zinc-950"
           >
             <option value="income">Income</option>
             <option value="expense">Expense</option>
@@ -627,13 +627,13 @@ function CategoryPicker({
           <button
             onClick={confirmNewCategory}
             disabled={!newCatName.trim() || savingCategory}
-            className="rounded-md bg-zinc-900 px-2 py-0.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-black"
+            className="rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 px-2 py-0.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
           >
             {savingCategory ? "Adding…" : "Add"}
           </button>
           <button
             onClick={cancelNewCategory}
-            className="text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+            className="text-xs text-zinc-500 hover:text-zinc-800 dark:text-violet-200/50 dark:hover:text-violet-100"
           >
             Cancel
           </button>
@@ -652,7 +652,7 @@ function CategoryPicker({
         }
         onPatch({ category_id: e.target.value ? Number(e.target.value) : null });
       }}
-      className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-950 md:w-40"
+      className="w-full rounded-lg border border-violet-200 bg-white px-2 py-1 dark:border-white/10 dark:bg-zinc-950 md:w-40"
     >
       <option value="">Select…</option>
       {categories.map((c) => (
@@ -677,7 +677,7 @@ function WhoseMoneyPicker({ t, onPatch, knownPeople, onNewPerson }: PickerProps)
           const role = roleForRelationship(rel, t.amount);
           onPatch({ party_role: role, party: rel === "owner" ? "Me" : t.party === "Me" ? "" : t.party });
         }}
-        className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-950 md:w-48"
+        className="w-full rounded-lg border border-violet-200 bg-white px-2 py-1 dark:border-white/10 dark:bg-zinc-950 md:w-48"
       >
         <option value="owner">My own money</option>
         <option value="owed_to_me">Money lent</option>
@@ -774,17 +774,17 @@ function PersonPicker({
         }}
         onFocus={() => setOpen(true)}
         onBlur={handleBlur}
-        className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-950"
+        className="w-full rounded-lg border border-violet-200 bg-white px-2 py-1 dark:border-white/10 dark:bg-zinc-950"
       />
       {open && matches.length > 0 && (
-        <div className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-md border border-zinc-300 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+        <div className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-xl border border-violet-100 bg-white shadow-lg dark:border-white/10 dark:bg-zinc-900">
           {matches.map((p) => (
             <button
               key={p}
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => selectExisting(p)}
-              className="block w-full px-2 py-1 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              className="block w-full px-2 py-1 text-left text-sm hover:bg-violet-50 dark:hover:bg-white/10"
             >
               {p}
             </button>
@@ -792,14 +792,14 @@ function PersonPicker({
         </div>
       )}
       {pendingNew && (
-        <div className="mt-1 flex flex-col gap-1 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+        <div className="mt-1 flex flex-col gap-1 rounded-xl border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
           <span>No existing account for &quot;{text.trim()}&quot;.</span>
           <div className="flex gap-2">
             <button
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={confirmNew}
-              className="rounded-md bg-amber-600 px-2 py-0.5 font-medium text-white hover:bg-amber-700"
+              className="rounded-full bg-amber-600 px-2 py-0.5 font-medium text-white hover:bg-amber-700"
             >
               Create new account
             </button>
@@ -840,11 +840,11 @@ function RowDesktop({
   const isExpense = t.amount < 0;
 
   return (
-    <tr className="border-t border-zinc-200 align-top dark:border-zinc-800">
+    <tr className="border-t border-violet-100 align-top dark:border-white/10">
       <td className="px-3 py-2">
         <input type="checkbox" checked={selected} onChange={onToggleSelect} />
       </td>
-      <td className="whitespace-nowrap px-3 py-2 text-zinc-500">{t.date}</td>
+      <td className="whitespace-nowrap px-3 py-2 text-zinc-500 dark:text-violet-200/50">{t.date}</td>
       <td className="px-3 py-2">{t.description}</td>
       <td
         className={`whitespace-nowrap px-3 py-2 text-right font-medium ${
@@ -873,7 +873,7 @@ function RowDesktop({
           <button
             onClick={onConfirm}
             disabled={!canConfirm}
-            className="rounded-md bg-zinc-900 px-3 py-1 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-30 dark:bg-white dark:text-black"
+            className="rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 px-3 py-1 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-30"
           >
             Confirm
           </button>
@@ -898,13 +898,13 @@ function RowCard({
   const isExpense = t.amount < 0;
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+    <div className="flex flex-col gap-3 rounded-2xl border border-violet-100 bg-white p-3 shadow-[0_2px_16px_-6px_rgba(139,92,246,0.12)] dark:border-white/10 dark:bg-white/5 dark:shadow-none">
       <div className="flex items-start gap-2">
         <input type="checkbox" checked={selected} onChange={onToggleSelect} className="mt-1" />
         <div className="flex flex-1 items-start justify-between gap-2">
           <div>
-            <div className="font-medium text-zinc-900 dark:text-zinc-50">{t.description}</div>
-            <div className="text-xs text-zinc-500">{t.date}</div>
+            <div className="font-medium text-violet-950 dark:text-white">{t.description}</div>
+            <div className="text-xs text-zinc-500 dark:text-violet-200/50">{t.date}</div>
           </div>
           <div
             className={`whitespace-nowrap font-semibold ${
@@ -917,12 +917,12 @@ function RowCard({
       </div>
 
       <div className="flex flex-col gap-1">
-        <span className="text-xs font-medium uppercase tracking-wide text-zinc-500">Category</span>
+        <span className="text-xs font-medium uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">Category</span>
         <CategoryPicker t={t} categories={categories} onPatch={onPatch} onAddCategory={onAddCategory} />
       </div>
 
       <div className="flex flex-col gap-1">
-        <span className="text-xs font-medium uppercase tracking-wide text-zinc-500">Whose money</span>
+        <span className="text-xs font-medium uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">Whose money</span>
         <WhoseMoneyPicker
           t={t}
           categories={categories}
@@ -940,7 +940,7 @@ function RowCard({
           <button
             onClick={onConfirm}
             disabled={!canConfirm}
-            className="w-full rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-30 dark:bg-white dark:text-black"
+            className="w-full rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-30"
           >
             Confirm
           </button>

@@ -95,10 +95,10 @@ export default function CategoriesPage() {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
       <div>
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+        <h1 className="text-2xl font-semibold text-violet-950 dark:text-white">
           Manage categories
         </h1>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="mt-1 text-sm text-zinc-600 dark:text-violet-200/60">
           Rename, retype, or delete categories. Deleting a category that&apos;s in use leaves
           those transactions uncategorized rather than deleting them.
         </p>
@@ -106,20 +106,20 @@ export default function CategoriesPage() {
 
       <form
         onSubmit={createCategory}
-        className="flex flex-col gap-2 rounded-lg border border-zinc-200 bg-white p-3 sm:flex-row sm:flex-wrap sm:items-center dark:border-zinc-800 dark:bg-zinc-950"
+        className="flex flex-col gap-2 rounded-2xl border border-violet-100 bg-white p-3 shadow-[0_2px_20px_-6px_rgba(139,92,246,0.15)] sm:flex-row sm:flex-wrap sm:items-center dark:border-white/10 dark:bg-white/5 dark:shadow-none"
       >
         <input
           type="text"
           placeholder="New category name"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-          className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-xl border border-violet-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 dark:border-white/10 dark:bg-zinc-900 dark:focus:ring-violet-500/30"
         />
         <div className="flex items-center gap-2">
           <select
             value={newKind}
             onChange={(e) => setNewKind(e.target.value as CategoryKind)}
-            className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-xl border border-violet-200 px-2 py-1.5 text-sm dark:border-white/10 dark:bg-zinc-900"
           >
             <option value="income">Income</option>
             <option value="expense">Expense</option>
@@ -128,7 +128,7 @@ export default function CategoriesPage() {
           <button
             type="submit"
             disabled={creating || !newName.trim()}
-            className="flex-1 rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none dark:bg-white dark:text-black"
+            className="flex-1 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 px-3 py-1.5 text-sm font-medium text-white shadow-sm shadow-violet-300/50 hover:from-violet-500 hover:to-fuchsia-400 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none dark:shadow-none"
           >
             {creating ? "Adding…" : "+ Add category"}
           </button>
@@ -148,21 +148,21 @@ export default function CategoriesPage() {
           />
         ))}
         {!loading && categories.length === 0 && (
-          <div className="rounded-lg border border-zinc-200 px-4 py-10 text-center text-sm text-zinc-500 dark:border-zinc-800">
+          <div className="rounded-2xl border border-violet-100 px-4 py-10 text-center text-sm text-zinc-500 dark:border-white/10 dark:text-violet-200/50">
             No categories yet.
           </div>
         )}
         {loading && (
-          <div className="rounded-lg border border-zinc-200 px-4 py-10 text-center text-sm text-zinc-500 dark:border-zinc-800">
+          <div className="rounded-2xl border border-violet-100 px-4 py-10 text-center text-sm text-zinc-500 dark:border-white/10 dark:text-violet-200/50">
             Loading…
           </div>
         )}
       </div>
 
       {/* Desktop: table */}
-      <div className="hidden overflow-hidden rounded-lg border border-zinc-200 md:block dark:border-zinc-800">
+      <div className="hidden overflow-hidden rounded-2xl border border-violet-100 bg-white shadow-[0_2px_20px_-6px_rgba(139,92,246,0.12)] md:block dark:border-white/10 dark:bg-white/5 dark:shadow-none">
         <table className="w-full text-sm">
-          <thead className="bg-zinc-100 text-left text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+          <thead className="bg-violet-50/70 text-left text-zinc-600 dark:bg-white/5 dark:text-violet-200/60">
             <tr>
               <th className="px-4 py-2 font-medium">Name</th>
               <th className="px-4 py-2 font-medium">Type</th>
@@ -183,9 +183,9 @@ export default function CategoriesPage() {
           </tbody>
         </table>
         {!loading && categories.length === 0 && (
-          <div className="px-4 py-10 text-center text-sm text-zinc-500">No categories yet.</div>
+          <div className="px-4 py-10 text-center text-sm text-zinc-500 dark:text-violet-200/50">No categories yet.</div>
         )}
-        {loading && <div className="px-4 py-10 text-center text-sm text-zinc-500">Loading…</div>}
+        {loading && <div className="px-4 py-10 text-center text-sm text-zinc-500 dark:text-violet-200/50">Loading…</div>}
       </div>
 
       <ClearDataSection />
@@ -213,7 +213,7 @@ function ClearDataSection() {
   }
 
   return (
-    <div className="rounded-lg border border-red-300 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950">
+    <div className="rounded-2xl border border-red-300 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950">
       <h2 className="text-sm font-semibold text-red-800 dark:text-red-300">Danger zone</h2>
       <p className="mt-1 text-sm text-red-700 dark:text-red-400">
         Permanently delete every transaction, upload record, and manually-added account
@@ -232,7 +232,7 @@ function ClearDataSection() {
             setOpen(true);
             setDone(false);
           }}
-          className="mt-3 rounded-md border border-red-400 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-zinc-950 dark:text-red-300 dark:hover:bg-red-900/40"
+          className="mt-3 rounded-full border border-red-400 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-zinc-950 dark:text-red-300 dark:hover:bg-red-900/40"
         >
           Clear all data…
         </button>
@@ -245,13 +245,13 @@ function ClearDataSection() {
             type="text"
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
-            className="w-full rounded-md border border-red-300 bg-white px-2 py-1 text-sm dark:border-red-800 dark:bg-zinc-950 sm:w-32"
+            className="w-full rounded-xl border border-red-300 bg-white px-2 py-1 text-sm dark:border-red-800 dark:bg-zinc-950 sm:w-32"
           />
           <div className="flex gap-2">
             <button
               onClick={clearData}
               disabled={confirmText !== "DELETE" || clearing}
-              className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 hover:bg-red-700"
+              className="rounded-full bg-red-600 px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 hover:bg-red-700"
             >
               {clearing ? "Clearing…" : "Clear all data"}
             </button>
@@ -294,7 +294,7 @@ function CategoryRowItem({ category, onRename, onChangeKind, onDelete }: Categor
   }
 
   return (
-    <tr className="border-t border-zinc-200 dark:border-zinc-800">
+    <tr className="border-t border-violet-100 dark:border-white/10">
       <td className="px-4 py-2">
         <input
           type="text"
@@ -304,21 +304,21 @@ function CategoryRowItem({ category, onRename, onChangeKind, onDelete }: Categor
           onKeyDown={(e) => {
             if (e.key === "Enter") (e.target as HTMLInputElement).blur();
           }}
-          className="w-full rounded-md border border-transparent bg-transparent px-2 py-1 hover:border-zinc-300 focus:border-zinc-400 focus:bg-white focus:outline-none dark:hover:border-zinc-700 dark:focus:border-zinc-600 dark:focus:bg-zinc-900"
+          className="w-full rounded-lg border border-transparent bg-transparent px-2 py-1 hover:border-violet-200 focus:border-violet-400 focus:bg-white focus:outline-none dark:hover:border-white/10 dark:focus:border-violet-500/40 dark:focus:bg-zinc-900"
         />
       </td>
       <td className="px-4 py-2">
         <select
           value={category.kind}
           onChange={(e) => onChangeKind(e.target.value as CategoryKind)}
-          className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+          className="rounded-lg border border-violet-200 bg-white px-2 py-1 text-sm dark:border-white/10 dark:bg-zinc-950"
         >
           <option value="income">Income</option>
           <option value="expense">Expense</option>
           <option value="loan">Loan</option>
         </select>
       </td>
-      <td className="px-4 py-2 text-zinc-500">
+      <td className="px-4 py-2 text-zinc-500 dark:text-violet-200/50">
         {category.usage_count > 0
           ? `${category.usage_count} transaction${category.usage_count === 1 ? "" : "s"}`
           : "—"}
@@ -348,7 +348,7 @@ function CategoryCard({ category, onRename, onChangeKind, onDelete }: CategoryIt
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+    <div className="flex flex-col gap-2 rounded-2xl border border-violet-100 bg-white p-3 shadow-[0_2px_16px_-6px_rgba(139,92,246,0.12)] dark:border-white/10 dark:bg-white/5 dark:shadow-none">
       <input
         type="text"
         value={name}
@@ -357,19 +357,19 @@ function CategoryCard({ category, onRename, onChangeKind, onDelete }: CategoryIt
         onKeyDown={(e) => {
           if (e.key === "Enter") (e.target as HTMLInputElement).blur();
         }}
-        className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-medium dark:border-zinc-700 dark:bg-zinc-900"
+        className="w-full rounded-xl border border-violet-200 px-2 py-1.5 font-medium dark:border-white/10 dark:bg-zinc-900"
       />
       <div className="flex items-center justify-between gap-2">
         <select
           value={category.kind}
           onChange={(e) => onChangeKind(e.target.value as CategoryKind)}
-          className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+          className="rounded-lg border border-violet-200 bg-white px-2 py-1 text-sm dark:border-white/10 dark:bg-zinc-950"
         >
           <option value="income">Income</option>
           <option value="expense">Expense</option>
           <option value="loan">Loan</option>
         </select>
-        <span className="text-xs text-zinc-500">
+        <span className="text-xs text-zinc-500 dark:text-violet-200/50">
           {category.usage_count > 0
             ? `${category.usage_count} transaction${category.usage_count === 1 ? "" : "s"}`
             : "Unused"}
