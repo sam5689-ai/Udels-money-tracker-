@@ -12,6 +12,7 @@ interface Row {
   party_kind: PartyKind;
   category_kind: "income" | "expense" | "loan" | null;
   category_name: string | null;
+  funded_by: string;
 }
 
 export interface BucketTransaction {
@@ -47,6 +48,10 @@ export interface Summary {
   // out). Two plain additive totals are unambiguous regardless of which
   // side(s) got tagged.
   accounts: { party: string; movedOut: number; movedBack: number }[];
+  // Personal expenses split by where the money came from: any spending
+  // transaction with a "funded by" tag set counts against savings; the
+  // rest is assumed to have come out of ordinary income (wages).
+  personalExpenses: { fundedBySavings: number; fundedByWages: number };
   unconfirmedCount: number;
 }
 
@@ -70,7 +75,7 @@ export function defaultRange(searchParams: URLSearchParams): { from: string; to:
 export async function computeSummary(db: Client, from: string, to: string): Promise<Summary> {
   const rs = await db.execute({
     sql: `SELECT t.id, t.date, t.description, t.amount, t.party, t.party_role, t.party_kind,
-                 c.kind as category_kind, c.name as category_name
+                 c.kind as category_kind, c.name as category_name, t.funded_by
           FROM transactions t
           LEFT JOIN categories c ON c.id = t.category_id
           WHERE t.confirmed = 1 AND t.date >= ? AND t.date <= ?`,
@@ -92,6 +97,8 @@ export async function computeSummary(db: Client, from: string, to: string): Prom
   let lentOutTotal = 0;
   let ownAccountsTotal = 0;
   let elseTotal = 0;
+  let fundedBySavings = 0;
+  let fundedByWages = 0;
   const spendingTx: BucketTransaction[] = [];
   const lentOutTx: BucketTransaction[] = [];
   const ownAccountsTx: BucketTransaction[] = [];
@@ -124,6 +131,8 @@ export async function computeSummary(db: Client, from: string, to: string): Prom
     if (r.party_role === "owner" && r.category_kind === "expense") {
       spendingTotal += Math.abs(r.amount);
       spendingTx.push(bucketTx);
+      if (r.funded_by.trim()) fundedBySavings += Math.abs(r.amount);
+      else fundedByWages += Math.abs(r.amount);
     } else if ((r.party_role === "lent_to" || r.party_role === "repaid_by") && r.party_kind === "account") {
       ownAccountsTotal += r.party_role === "lent_to" ? Math.abs(r.amount) : -Math.abs(r.amount);
       ownAccountsTx.push(bucketTx);
@@ -215,6 +224,10 @@ export async function computeSummary(db: Client, from: string, to: string): Prom
     byCategory,
     loans,
     accounts,
+    personalExpenses: {
+      fundedBySavings: Math.round(fundedBySavings * 100) / 100,
+      fundedByWages: Math.round(fundedByWages * 100) / 100,
+    },
     unconfirmedCount,
   };
 }

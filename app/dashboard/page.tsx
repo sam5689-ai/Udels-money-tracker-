@@ -42,6 +42,7 @@ interface Summary {
   byCategory: { category: string; kind: string; total: number }[];
   loans: { party: string; youOweThem: number; theyOweYou: number; net: number }[];
   accounts: { party: string; movedOut: number; movedBack: number }[];
+  personalExpenses: { fundedBySavings: number; fundedByWages: number };
   unconfirmedCount: number;
 }
 
@@ -148,7 +149,7 @@ export default function DashboardPage() {
         <BucketTile
           bucketKey="spending"
           label="Personal expenses"
-          hint="Your own expenses — no one else involved"
+          hint="Tap to see the savings vs. wages split"
           value={summary.buckets.spending.total}
           color={expenseColor}
           active={expandedBucket === "spending"}
@@ -196,6 +197,14 @@ export default function DashboardPage() {
           }
           bucket={summary.buckets[expandedBucket]}
           onClose={() => setExpandedBucket(null)}
+          breakdown={
+            expandedBucket === "spending"
+              ? [
+                  { label: "Funded by savings", value: summary.personalExpenses.fundedBySavings },
+                  { label: "Funded by wages", value: summary.personalExpenses.fundedByWages },
+                ]
+              : undefined
+          }
         />
       )}
 
@@ -482,10 +491,12 @@ function BucketDetail({
   label,
   bucket,
   onClose,
+  breakdown,
 }: {
   label: string;
   bucket: Bucket;
   onClose: () => void;
+  breakdown?: { label: string; value: number }[];
 }) {
   return (
     <section className="rounded-3xl border border-violet-100 bg-white p-4 shadow-[0_2px_24px_-6px_rgba(139,92,246,0.12)] sm:p-5 dark:border-white/10 dark:bg-white/5 dark:shadow-none">
@@ -500,6 +511,19 @@ function BucketDetail({
           Close
         </button>
       </div>
+      {breakdown && (
+        <div className="mb-4 flex flex-wrap gap-3">
+          {breakdown.map((b) => (
+            <div
+              key={b.label}
+              className="rounded-2xl border border-violet-100 bg-violet-50/50 px-3 py-2 dark:border-white/10 dark:bg-white/5"
+            >
+              <div className="text-xs text-zinc-500 dark:text-violet-200/50">{b.label}</div>
+              <div className="text-sm font-semibold text-violet-950 dark:text-white">{currency(b.value)}</div>
+            </div>
+          ))}
+        </div>
+      )}
       {bucket.transactions.length === 0 ? (
         <EmptyState />
       ) : (
