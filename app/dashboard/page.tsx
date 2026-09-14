@@ -43,6 +43,7 @@ interface Summary {
   loans: { party: string; youOweThem: number; theyOweYou: number; net: number }[];
   accounts: { party: string; movedOut: number; movedBack: number }[];
   personalExpenses: { fundedBySavings: number; fundedByOtherIncome: number };
+  savingsDeposited: number;
   unconfirmedCount: number;
 }
 
@@ -167,7 +168,7 @@ export default function DashboardPage() {
         <BucketTile
           bucketKey="ownAccounts"
           label="Savings"
-          hint="Still yours, always available to you"
+          hint="Tap to see deposited vs. spent"
           value={summary.buckets.ownAccounts.total}
           color={isDark ? "#a78bfa" : "#7c3aed"}
           active={expandedBucket === "ownAccounts"}
@@ -203,7 +204,12 @@ export default function DashboardPage() {
                   { label: "Funded by savings", value: summary.personalExpenses.fundedBySavings },
                   { label: "Other income", value: summary.personalExpenses.fundedByOtherIncome },
                 ]
-              : undefined
+              : expandedBucket === "ownAccounts"
+                ? [
+                    { label: "Deposited", value: summary.savingsDeposited },
+                    { label: "Spent from savings", value: summary.personalExpenses.fundedBySavings },
+                  ]
+                : undefined
           }
         />
       )}
