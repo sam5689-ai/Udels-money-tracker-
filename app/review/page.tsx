@@ -846,6 +846,7 @@ function RowDesktop({
   canConfirm,
 }: RowProps) {
   const isExpense = t.amount < 0;
+  const needsCategory = relationshipOf(t.party_role, t.party_kind) === "owner";
 
   return (
     <tr className="border-t border-violet-100 align-top dark:border-white/10">
@@ -867,7 +868,11 @@ function RowDesktop({
         {isExpense ? "-" : "+"}£{Math.abs(t.amount).toFixed(2)}
       </td>
       <td className="px-3 py-2">
-        <CategoryPicker t={t} categories={categories} onPatch={onPatch} onAddCategory={onAddCategory} />
+        {needsCategory ? (
+          <CategoryPicker t={t} categories={categories} onPatch={onPatch} onAddCategory={onAddCategory} />
+        ) : (
+          <span className="text-xs text-zinc-400 dark:text-violet-200/30">— not needed —</span>
+        )}
       </td>
       <td className="px-3 py-2">
         <WhoseMoneyPicker
@@ -913,6 +918,7 @@ function RowCard({
   canConfirm,
 }: RowProps) {
   const isExpense = t.amount < 0;
+  const needsCategory = relationshipOf(t.party_role, t.party_kind) === "owner";
 
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-violet-100 bg-white p-3 shadow-[0_2px_16px_-6px_rgba(139,92,246,0.12)] dark:border-white/10 dark:bg-white/5 dark:shadow-none">
@@ -936,10 +942,12 @@ function RowCard({
         </div>
       </div>
 
-      <div className="flex flex-col gap-1">
-        <span className="text-xs font-medium uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">Category</span>
-        <CategoryPicker t={t} categories={categories} onPatch={onPatch} onAddCategory={onAddCategory} />
-      </div>
+      {needsCategory && (
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-medium uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">Category</span>
+          <CategoryPicker t={t} categories={categories} onPatch={onPatch} onAddCategory={onAddCategory} />
+        </div>
+      )}
 
       <div className="flex flex-col gap-1">
         <span className="text-xs font-medium uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">Whose money</span>
