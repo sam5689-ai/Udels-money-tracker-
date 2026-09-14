@@ -881,11 +881,16 @@ function WhoseMoneyPicker({
           <select
             value={t.funded_by}
             onChange={(e) => onPatch({ funded_by: e.target.value })}
-            title="Was this purchase paid for out of money withdrawn from savings, or ordinary income?"
+            title="Where did the money for this purchase actually come from?"
             className="w-full rounded-lg border border-violet-200 bg-white px-2 py-1 text-xs text-zinc-500 dark:border-white/10 dark:bg-zinc-950 dark:text-violet-200/60"
           >
-            <option value="">Other income</option>
-            <option value="Savings">Savings</option>
+            <option value="">Funded by other income</option>
+            <option value="Savings">Funded by savings</option>
+            {knownPeople.map((name) => (
+              <option key={name} value={name}>
+                Funded by {name}
+              </option>
+            ))}
           </select>
         ) : (
           <button
@@ -893,7 +898,7 @@ function WhoseMoneyPicker({
             onClick={() => setShowFundedBy(true)}
             className="self-start text-xs text-violet-400 hover:text-violet-600 dark:text-violet-300/50 dark:hover:text-violet-200"
           >
-            + Funded by savings?
+            + Tag funding source?
           </button>
         ))}
     </div>

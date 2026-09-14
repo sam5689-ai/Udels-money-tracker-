@@ -49,11 +49,13 @@ export interface Summary {
   // side(s) got tagged.
   accounts: { party: string; movedOut: number; movedBack: number }[];
   // Personal expenses split by where the money came from: spending
-  // transactions tagged "Savings" count against savings; everything
-  // else is assumed to have come out of ordinary (other) income. This
-  // is informational only — it does NOT affect the savings pot below,
-  // to avoid double-counting a withdrawal that's later spent.
-  personalExpenses: { fundedBySavings: number; fundedByOtherIncome: number };
+  // transactions tagged "Savings" count against savings, spending tagged
+  // with a person's name (money that came from them, e.g. a loan
+  // repayment) counts against fundedByPerson, and everything else is
+  // assumed to have come out of ordinary (other) income. This is
+  // informational only — it does NOT affect the savings pot below, to
+  // avoid double-counting a withdrawal that's later spent.
+  personalExpenses: { fundedBySavings: number; fundedByPerson: number; fundedByOtherIncome: number };
   // The savings pot: deposited minus withdrawn. buckets.ownAccounts.total
   // is savingsDeposited - savingsWithdrawn.
   savingsDeposited: number;
@@ -105,6 +107,7 @@ export async function computeSummary(db: Client, from: string, to: string): Prom
   let savingsWithdrawn = 0;
   let elseTotal = 0;
   let fundedBySavings = 0;
+  let fundedByPerson = 0;
   let fundedByOtherIncome = 0;
   const spendingTx: BucketTransaction[] = [];
   const lentOutTx: BucketTransaction[] = [];
@@ -139,7 +142,9 @@ export async function computeSummary(db: Client, from: string, to: string): Prom
     if (r.party_role === "owner" && r.category_kind === "expense") {
       spendingTotal += Math.abs(r.amount);
       spendingTx.push(bucketTx);
-      if (r.funded_by.trim()) fundedBySavings += Math.abs(r.amount);
+      const fundedBy = r.funded_by.trim();
+      if (fundedBy === "Savings") fundedBySavings += Math.abs(r.amount);
+      else if (fundedBy) fundedByPerson += Math.abs(r.amount);
       else fundedByOtherIncome += Math.abs(r.amount);
     } else if ((r.party_role === "lent_to" || r.party_role === "repaid_by") && r.party_kind === "account") {
       if (r.party_role === "lent_to") savingsDeposited += Math.abs(r.amount);
@@ -238,6 +243,7 @@ export async function computeSummary(db: Client, from: string, to: string): Prom
     accounts,
     personalExpenses: {
       fundedBySavings: Math.round(fundedBySavings * 100) / 100,
+      fundedByPerson: Math.round(fundedByPerson * 100) / 100,
       fundedByOtherIncome: Math.round(fundedByOtherIncome * 100) / 100,
     },
     savingsDeposited: Math.round(savingsDeposited * 100) / 100,

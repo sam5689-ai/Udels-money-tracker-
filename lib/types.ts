@@ -33,14 +33,16 @@ export interface Transaction {
   // for transactions imported before this existed, or entered manually
   // without picking one.
   account: string;
-  // Optional, self-declared: was this specific spend paid for out of
-  // money withdrawn from savings, rather than ordinary income? Once
-  // money is mixed together in a regular account there's no way to
-  // trace its origin automatically, so this is the user saying "count
-  // this purchase against savings." "" means ordinary/untagged
-  // spending; "Savings" means tagged. Independent of `account` (which
-  // physical account the spend happened in) and only meaningful for
-  // owner+expense transactions.
+  // Optional, self-declared: where did the money for this specific spend
+  // actually come from? Once money is mixed together in a regular
+  // account there's no way to trace its origin automatically, so this
+  // is the user saying "count this purchase against X." "" means
+  // ordinary/untagged spending (assumed to be other income); "Savings"
+  // means tagged against the savings pot; any other value is a person's
+  // name, meaning this was funded by money that came from them (e.g. a
+  // loan repayment). Independent of `account` (which physical account
+  // the spend happened in) and only meaningful for owner+expense
+  // transactions.
   funded_by: string;
   confirmed: number;
   confirmed_at: string | null;
