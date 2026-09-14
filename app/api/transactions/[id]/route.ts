@@ -21,8 +21,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     args.push(body.category_id ?? null);
   }
   if ("party" in body && typeof body.party === "string") {
+    // Don't default a blank party to "Me" here — "Me" is only meaningful
+    // for the owner relationship, and that's set explicitly by the client
+    // when switching to it. Defaulting unconditionally leaked "Me" onto
+    // loan/savings rows whenever their party was briefly cleared mid-edit.
     sets.push("party = ?");
-    args.push(body.party.trim() || "Me");
+    args.push(body.party.trim());
   }
   if ("party_role" in body) {
     if (!VALID_ROLES.includes(body.party_role)) {

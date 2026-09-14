@@ -91,8 +91,11 @@ export async function PATCH(req: NextRequest) {
     args.push(patch.category_id ?? null);
   }
   if ("party" in patch && typeof patch.party === "string") {
+    // See the single-transaction PATCH route for why this doesn't default
+    // a blank party to "Me" — that's only correct for the owner
+    // relationship, which the client sets explicitly.
     sets.push("party = ?");
-    args.push(patch.party.trim() || "Me");
+    args.push(patch.party.trim());
   }
   if ("party_role" in patch && patch.party_role) {
     sets.push("party_role = ?");
