@@ -707,6 +707,19 @@ function CategoryPicker({
   const [newCatKind, setNewCatKind] = useState<CategoryKind>(isExpense ? "expense" : "income");
   const [savingCategory, setSavingCategory] = useState(false);
 
+  // Money coming in almost never needs picking a specific income category
+  // to be worth confirming — default it to "Other Income" so there's
+  // nothing to actively choose, while still leaving it free to change to
+  // Salary/Gift/Refund etc. Spending is left alone: which expense category
+  // something falls under is the one thing worth categorizing by hand.
+  useEffect(() => {
+    if (!isExpense && t.category_id == null) {
+      const fallback = categories.find((c) => c.kind === "income" && c.name === "Other Income");
+      if (fallback) onPatch({ category_id: fallback.id });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isExpense, t.category_id, categories]);
+
   async function confirmNewCategory() {
     const name = newCatName.trim();
     if (!name) return;
