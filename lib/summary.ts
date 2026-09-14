@@ -50,11 +50,14 @@ export interface Summary {
   accounts: { party: string; movedOut: number; movedBack: number }[];
   // Personal expenses split by where the money came from: spending
   // transactions tagged "Savings" count against savings, spending tagged
-  // with a person's name (money that came from them, e.g. a loan
-  // repayment) counts against fundedByPerson, and everything else is
-  // assumed to have come out of ordinary (other) income. This is
-  // informational only — it does NOT affect the savings pot below, to
-  // avoid double-counting a withdrawal that's later spent.
+  // with a person's name counts against fundedByPerson, and everything
+  // else is assumed to have come out of ordinary (other) income. Unlike
+  // "Savings" (informational only, see below), spending tagged with a
+  // person's name DOES also reduce what you owe them in `loans` — money
+  // they send you isn't always a loan meant to sit as a debt; sometimes
+  // it's money handed over for a specific purchase, and there's no way
+  // to tell which at the time it arrives. Tagging the resulting spend
+  // "Funded by <them>" is how that gets settled after the fact.
   personalExpenses: { fundedBySavings: number; fundedByPerson: number; fundedByOtherIncome: number };
   // The savings pot: deposited minus withdrawn. buckets.ownAccounts.total
   // is savingsDeposited - savingsWithdrawn.
@@ -144,8 +147,16 @@ export async function computeSummary(db: Client, from: string, to: string): Prom
       spendingTx.push(bucketTx);
       const fundedBy = r.funded_by.trim();
       if (fundedBy === "Savings") fundedBySavings += Math.abs(r.amount);
-      else if (fundedBy) fundedByPerson += Math.abs(r.amount);
-      else fundedByOtherIncome += Math.abs(r.amount);
+      else if (fundedBy) {
+        fundedByPerson += Math.abs(r.amount);
+        // Money someone sends you isn't always a loan meant to sit as a
+        // debt — sometimes it was handed over for exactly this purchase,
+        // and there's no way to tell which at the time it arrives. Tagging
+        // the spend "Funded by <them>" settles that after the fact, same
+        // effect as a "repaid_to" transaction (reduces what you owe them).
+        if (!loanTotals.has(fundedBy)) loanTotals.set(fundedBy, { youOweThem: 0, theyOweYou: 0 });
+        loanTotals.get(fundedBy)!.youOweThem -= Math.abs(r.amount);
+      } else fundedByOtherIncome += Math.abs(r.amount);
     } else if ((r.party_role === "lent_to" || r.party_role === "repaid_by") && r.party_kind === "account") {
       if (r.party_role === "lent_to") savingsDeposited += Math.abs(r.amount);
       else savingsWithdrawn += Math.abs(r.amount);

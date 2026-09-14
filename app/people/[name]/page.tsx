@@ -13,6 +13,7 @@ interface LedgerEntry {
   party_role: PartyRole;
   delta: number;
   balance: number;
+  fundedBySpend?: boolean;
 }
 
 interface AccountData {
@@ -157,7 +158,7 @@ export default function PersonAccountPage() {
                   {e.description}
                 </div>
                 <div className="text-xs text-zinc-500 dark:text-violet-200/50">
-                  {e.date} · {entryLabel(e.party_role, data.party_kind)}
+                  {e.date} · {e.fundedBySpend ? "Spent — funded by them" : entryLabel(e.party_role, data.party_kind)}
                 </div>
               </div>
               <div className="shrink-0 text-right">
