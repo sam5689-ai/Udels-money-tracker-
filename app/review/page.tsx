@@ -806,7 +806,7 @@ function WhoseMoneyPicker({ t, onPatch, knownPeople, onNewPerson, knownAccounts,
           <select
             value={t.funded_by}
             onChange={(e) => onPatch({ funded_by: e.target.value })}
-            title="Optional: count this purchase against money you withdrew from savings, rather than ordinary spending"
+            title="Optional: mark this purchase as funded by money from one of your own accounts, rather than ordinary spending"
             className="w-full rounded-lg border border-violet-200 bg-white px-2 py-1 text-xs text-zinc-500 dark:border-white/10 dark:bg-zinc-950 dark:text-violet-200/60"
           >
             <option value="">Not tagged</option>
@@ -822,7 +822,7 @@ function WhoseMoneyPicker({ t, onPatch, knownPeople, onNewPerson, knownAccounts,
             onClick={() => setShowFundedBy(true)}
             className="self-start text-xs text-violet-400 hover:text-violet-600 dark:text-violet-300/50 dark:hover:text-violet-200"
           >
-            + Funded by savings?
+            + Funded by personal money?
           </button>
         ))}
     </div>

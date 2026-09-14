@@ -147,7 +147,7 @@ export default function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <BucketTile
           bucketKey="spending"
-          label="My spending"
+          label="Personal expenses"
           hint="Your own expenses — no one else involved"
           value={summary.buckets.spending.total}
           color={expenseColor}
@@ -187,7 +187,7 @@ export default function DashboardPage() {
         <BucketDetail
           label={
             expandedBucket === "spending"
-              ? "My spending"
+              ? "Personal expenses"
               : expandedBucket === "lentOut"
                 ? "Lent out"
                 : expandedBucket === "ownAccounts"
