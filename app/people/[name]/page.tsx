@@ -15,21 +15,12 @@ interface LedgerEntry {
   balance: number;
 }
 
-interface TaggedTx {
-  id: number;
-  date: string;
-  description: string;
-  amount: number;
-}
-
 interface AccountData {
   party: string;
   party_kind: PartyKind;
   balance: number;
   movedOut: number;
   movedBack: number;
-  taggedTotal: number;
-  taggedSpending: TaggedTx[];
   ledger: LedgerEntry[];
 }
 
@@ -127,7 +118,7 @@ export default function PersonAccountPage() {
       </div>
 
       {isAccount ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4">
           <div className="rounded-3xl border border-violet-100 bg-white p-5 shadow-[0_2px_24px_-6px_rgba(139,92,246,0.18)] dark:border-white/10 dark:bg-white/5 dark:shadow-none">
             <div className="text-xs font-semibold uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">
               Moved out
@@ -142,17 +133,6 @@ export default function PersonAccountPage() {
             </div>
             <div className="mt-1 text-2xl font-semibold text-violet-950 dark:text-white">
               {currency(data.movedBack)}
-            </div>
-          </div>
-          <div className="col-span-2 rounded-3xl border border-violet-100 bg-white p-5 shadow-[0_2px_24px_-6px_rgba(139,92,246,0.18)] dark:border-white/10 dark:bg-white/5 dark:shadow-none sm:col-span-1">
-            <div className="text-xs font-semibold uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">
-              Tagged as spent
-            </div>
-            <div className="mt-1 text-2xl font-semibold text-violet-950 dark:text-white">
-              {currency(data.taggedTotal)}
-            </div>
-            <div className="mt-1 text-xs text-zinc-500 dark:text-violet-200/50">
-              of {currency(data.movedBack)} moved back
             </div>
           </div>
         </div>
@@ -205,31 +185,6 @@ export default function PersonAccountPage() {
           ))}
         </div>
       </div>
-
-      {isAccount && data.taggedSpending.length > 0 && (
-        <div className="rounded-3xl border border-violet-100 bg-white p-4 shadow-[0_2px_24px_-6px_rgba(139,92,246,0.12)] sm:p-5 dark:border-white/10 dark:bg-white/5 dark:shadow-none">
-          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-violet-500/70 dark:text-violet-300/50">
-            Spending tagged as funded by {data.party}
-          </h2>
-          <p className="mb-3 text-xs text-zinc-500 dark:text-violet-200/50">
-            Purchases you&apos;ve marked as coming out of money withdrawn from here, wherever they
-            actually happened.
-          </p>
-          <div className="flex flex-col divide-y divide-violet-100 dark:divide-white/10">
-            {data.taggedSpending.map((t) => (
-              <div key={t.id} className="flex items-center justify-between gap-3 py-3 text-sm">
-                <div className="min-w-0">
-                  <div className="truncate font-medium text-violet-950 dark:text-white">{t.description}</div>
-                  <div className="text-xs text-zinc-500 dark:text-violet-200/50">{t.date}</div>
-                </div>
-                <div className="shrink-0 font-medium text-red-600 dark:text-red-400">
-                  -£{Math.abs(t.amount).toFixed(2)}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </main>
   );
 }

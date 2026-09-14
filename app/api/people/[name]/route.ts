@@ -15,13 +15,6 @@ interface Row {
   party_kind: PartyKind;
 }
 
-interface TaggedRow {
-  id: number;
-  date: string;
-  description: string;
-  amount: number;
-}
-
 export interface LedgerEntry {
   id: number;
   date: string;
@@ -81,20 +74,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ nam
     };
   });
 
-  // Spending elsewhere self-tagged as "funded by" this account — see
-  // funded_by on Transaction. Only meaningful when this party is an
-  // account (a savings/investment pot), but harmless to compute either
-  // way; the ledger page only renders it for party_kind "account".
-  const taggedRs = await db.execute({
-    sql: `SELECT id, date, description, amount
-          FROM transactions
-          WHERE confirmed = 1 AND party_role = 'owner' AND funded_by = ? COLLATE NOCASE
-          ORDER BY date DESC, id DESC`,
-    args: [decodedName],
-  });
-  const taggedSpending = rowsOf<TaggedRow>(taggedRs);
-  const taggedTotal = taggedSpending.reduce((sum, t) => sum + Math.abs(t.amount), 0);
-
   return NextResponse.json({
     party: rows[0].party,
     party_kind: rows[0].party_kind,
@@ -105,8 +84,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ nam
     // shows these two plain totals instead for party_kind "account".
     movedOut: Math.round(movedOut * 100) / 100,
     movedBack: Math.round(movedBack * 100) / 100,
-    taggedTotal: Math.round(taggedTotal * 100) / 100,
-    taggedSpending,
     ledger: [...ledger].reverse(), // most recent first
   });
 }

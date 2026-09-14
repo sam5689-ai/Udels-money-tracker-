@@ -42,7 +42,7 @@ interface Summary {
   byCategory: { category: string; kind: string; total: number }[];
   loans: { party: string; youOweThem: number; theyOweYou: number; net: number }[];
   accounts: { party: string; movedOut: number; movedBack: number }[];
-  personalExpenses: { fundedBySavings: number; fundedByWages: number };
+  personalExpenses: { fundedBySavings: number; fundedByOtherIncome: number };
   unconfirmedCount: number;
 }
 
@@ -149,7 +149,7 @@ export default function DashboardPage() {
         <BucketTile
           bucketKey="spending"
           label="Personal expenses"
-          hint="Tap to see the savings vs. wages split"
+          hint="Tap to see the savings vs. other income split"
           value={summary.buckets.spending.total}
           color={expenseColor}
           active={expandedBucket === "spending"}
@@ -201,7 +201,7 @@ export default function DashboardPage() {
             expandedBucket === "spending"
               ? [
                   { label: "Funded by savings", value: summary.personalExpenses.fundedBySavings },
-                  { label: "Funded by wages", value: summary.personalExpenses.fundedByWages },
+                  { label: "Other income", value: summary.personalExpenses.fundedByOtherIncome },
                 ]
               : undefined
           }

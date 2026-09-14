@@ -48,10 +48,10 @@ export interface Summary {
   // out). Two plain additive totals are unambiguous regardless of which
   // side(s) got tagged.
   accounts: { party: string; movedOut: number; movedBack: number }[];
-  // Personal expenses split by where the money came from: any spending
-  // transaction with a "funded by" tag set counts against savings; the
-  // rest is assumed to have come out of ordinary income (wages).
-  personalExpenses: { fundedBySavings: number; fundedByWages: number };
+  // Personal expenses split by where the money came from: spending
+  // transactions tagged "Savings" count against savings; everything
+  // else is assumed to have come out of ordinary (other) income.
+  personalExpenses: { fundedBySavings: number; fundedByOtherIncome: number };
   unconfirmedCount: number;
 }
 
@@ -98,7 +98,7 @@ export async function computeSummary(db: Client, from: string, to: string): Prom
   let ownAccountsTotal = 0;
   let elseTotal = 0;
   let fundedBySavings = 0;
-  let fundedByWages = 0;
+  let fundedByOtherIncome = 0;
   const spendingTx: BucketTransaction[] = [];
   const lentOutTx: BucketTransaction[] = [];
   const ownAccountsTx: BucketTransaction[] = [];
@@ -132,7 +132,7 @@ export async function computeSummary(db: Client, from: string, to: string): Prom
       spendingTotal += Math.abs(r.amount);
       spendingTx.push(bucketTx);
       if (r.funded_by.trim()) fundedBySavings += Math.abs(r.amount);
-      else fundedByWages += Math.abs(r.amount);
+      else fundedByOtherIncome += Math.abs(r.amount);
     } else if ((r.party_role === "lent_to" || r.party_role === "repaid_by") && r.party_kind === "account") {
       ownAccountsTotal += r.party_role === "lent_to" ? Math.abs(r.amount) : -Math.abs(r.amount);
       ownAccountsTx.push(bucketTx);
@@ -226,7 +226,7 @@ export async function computeSummary(db: Client, from: string, to: string): Prom
     accounts,
     personalExpenses: {
       fundedBySavings: Math.round(fundedBySavings * 100) / 100,
-      fundedByWages: Math.round(fundedByWages * 100) / 100,
+      fundedByOtherIncome: Math.round(fundedByOtherIncome * 100) / 100,
     },
     unconfirmedCount,
   };
