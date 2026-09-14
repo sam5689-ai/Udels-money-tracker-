@@ -50,15 +50,14 @@ export interface Summary {
   accounts: { party: string; movedOut: number; movedBack: number }[];
   // Personal expenses split by where the money came from: spending
   // transactions tagged "Savings" count against savings; everything
-  // else is assumed to have come out of ordinary (other) income.
+  // else is assumed to have come out of ordinary (other) income. This
+  // is informational only — it does NOT affect the savings pot below,
+  // to avoid double-counting a withdrawal that's later spent.
   personalExpenses: { fundedBySavings: number; fundedByOtherIncome: number };
-  // How much has ever been deposited into a savings-type account —
-  // the other half of buckets.ownAccounts.total, which is this minus
-  // personalExpenses.fundedBySavings (deposits minus tagged spending).
-  // A withdrawal from savings deliberately does NOT reduce this: money
-  // moved back into a regular account is still "yours" until a specific
-  // purchase is tagged against it.
+  // The savings pot: deposited minus withdrawn. buckets.ownAccounts.total
+  // is savingsDeposited - savingsWithdrawn.
   savingsDeposited: number;
+  savingsWithdrawn: number;
   unconfirmedCount: number;
 }
 
@@ -103,6 +102,7 @@ export async function computeSummary(db: Client, from: string, to: string): Prom
   let spendingTotal = 0;
   let lentOutTotal = 0;
   let savingsDeposited = 0;
+  let savingsWithdrawn = 0;
   let elseTotal = 0;
   let fundedBySavings = 0;
   let fundedByOtherIncome = 0;
@@ -127,12 +127,12 @@ export async function computeSummary(db: Client, from: string, to: string): Prom
     // Four buckets that answer "what is this money, in plain terms":
     // 1. My own spending — normal expenses, no one else involved.
     // 2. Lent out — money handed to another PERSON that's expected back.
-    // 3. Savings — a running reserve, not a bank balance: it grows on
-    //    every deposit into a savings-type account, but only shrinks
-    //    when a spending transaction is explicitly tagged "Savings".
-    //    Withdrawing money out of savings into a regular account does
-    //    NOT shrink it — that money is still "yours" until an actual
-    //    purchase is tagged against it (see personalExpenses below).
+    // 3. Savings — a running pot: deposits into a savings-type account
+    //    grow it, withdrawals out of one shrink it. The "funded by
+    //    savings" spending tag (personalExpenses below) is a separate,
+    //    informational split of your everyday spending — it does not
+    //    also deplete the pot, since that would double-count money that
+    //    was already removed from it on withdrawal.
     // 4. Everything else — income, money borrowed from others, and
     //    repayments either direction. A deliberate catch-all rather than
     //    guessing finer categories for it.
@@ -143,6 +143,7 @@ export async function computeSummary(db: Client, from: string, to: string): Prom
       else fundedByOtherIncome += Math.abs(r.amount);
     } else if ((r.party_role === "lent_to" || r.party_role === "repaid_by") && r.party_kind === "account") {
       if (r.party_role === "lent_to") savingsDeposited += Math.abs(r.amount);
+      else savingsWithdrawn += Math.abs(r.amount);
       ownAccountsTx.push(bucketTx);
     } else if (r.party_role === "lent_to" || r.party_role === "repaid_by") {
       lentOutTotal += r.party_role === "lent_to" ? Math.abs(r.amount) : -Math.abs(r.amount);
@@ -226,7 +227,7 @@ export async function computeSummary(db: Client, from: string, to: string): Prom
       spending: { total: Math.round(spendingTotal * 100) / 100, transactions: spendingTx },
       lentOut: { total: Math.round(lentOutTotal * 100) / 100, transactions: lentOutTx },
       ownAccounts: {
-        total: Math.round((savingsDeposited - fundedBySavings) * 100) / 100,
+        total: Math.round((savingsDeposited - savingsWithdrawn) * 100) / 100,
         transactions: ownAccountsTx,
       },
       everythingElse: { total: Math.round(elseTotal * 100) / 100, transactions: elseTx },
@@ -240,6 +241,7 @@ export async function computeSummary(db: Client, from: string, to: string): Prom
       fundedByOtherIncome: Math.round(fundedByOtherIncome * 100) / 100,
     },
     savingsDeposited: Math.round(savingsDeposited * 100) / 100,
+    savingsWithdrawn: Math.round(savingsWithdrawn * 100) / 100,
     unconfirmedCount,
   };
 }

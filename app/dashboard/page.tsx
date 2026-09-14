@@ -44,6 +44,7 @@ interface Summary {
   accounts: { party: string; movedOut: number; movedBack: number }[];
   personalExpenses: { fundedBySavings: number; fundedByOtherIncome: number };
   savingsDeposited: number;
+  savingsWithdrawn: number;
   unconfirmedCount: number;
 }
 
@@ -168,7 +169,7 @@ export default function DashboardPage() {
         <BucketTile
           bucketKey="ownAccounts"
           label="Savings"
-          hint="Tap to see deposited vs. spent"
+          hint="Tap to see deposited vs. withdrawn"
           value={summary.buckets.ownAccounts.total}
           color={isDark ? "#a78bfa" : "#7c3aed"}
           active={expandedBucket === "ownAccounts"}
@@ -207,7 +208,7 @@ export default function DashboardPage() {
               : expandedBucket === "ownAccounts"
                 ? [
                     { label: "Deposited", value: summary.savingsDeposited },
-                    { label: "Spent from savings", value: summary.personalExpenses.fundedBySavings },
+                    { label: "Withdrawn", value: summary.savingsWithdrawn },
                   ]
                 : undefined
           }
