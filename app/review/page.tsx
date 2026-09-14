@@ -23,29 +23,31 @@ interface TxRow {
 
 type Filter = "unconfirmed" | "confirmed" | "all";
 
-// The 5 underlying party_role values collapse into 4 relationships in the
-// UI: whether a given transaction is a loan/transfer or a repayment is
-// already implied by its amount's sign (money out vs. money in), so
-// there's no need to ask for that separately. "Money lent" and "Savings"
-// share the exact same lent_to/repaid_by pair and sign logic — the only
-// difference is party_kind, i.e. whether `party` names another person or
-// one of your own savings/investment accounts (so uploading both sides
-// of a transfer between two of your accounts never inflates
-// income/expenses). "owner" likewise covers both directions — its label
-// just switches between "Money spent" and "Money received" by sign.
-type MoneyRelationship = "owner" | "owed_to_me" | "owed_by_me" | "own_account";
+// The 5 underlying party_role values collapse into 3 relationships in the
+// UI. "owner" covers both directions — its label just switches between
+// "Money spent" and "Money received" by amount sign. "loan" also covers
+// both directions with a single person: money you send them counts as
+// lent, money they send you counts as borrowed, purely from which way it
+// moved — no need to separately judge whether a given transaction is a
+// fresh loan or a repayment of an earlier one, since the running balance
+// (loanTotals in lib/summary.ts) nets out correctly either way: every
+// outflow adds to what they owe you and every inflow subtracts from it,
+// regardless of which "leg" it actually was. "own_account" (Savings) is
+// the same idea applied to one of your own accounts instead of another
+// person, so uploading both sides of a transfer never inflates
+// income/expenses.
+type MoneyRelationship = "owner" | "loan" | "own_account";
 
 function relationshipOf(role: PartyRole, kind: PartyKind): MoneyRelationship {
   if (role === "owner") return "owner";
   if (kind === "account") return "own_account";
-  if (role === "lent_to" || role === "repaid_by") return "owed_to_me";
-  return "owed_by_me"; // borrowed_from or repaid_to
+  return "loan"; // lent_to, borrowed_from, repaid_to, or repaid_by
 }
 
 function roleForRelationship(relationship: MoneyRelationship, amount: number): PartyRole {
   if (relationship === "owner") return "owner";
-  if (relationship === "owed_to_me" || relationship === "own_account") return amount < 0 ? "lent_to" : "repaid_by";
-  return amount > 0 ? "borrowed_from" : "repaid_to";
+  if (relationship === "own_account") return amount < 0 ? "lent_to" : "repaid_by";
+  return amount < 0 ? "lent_to" : "borrowed_from";
 }
 
 function kindForRelationship(relationship: MoneyRelationship): PartyKind {
@@ -475,8 +477,8 @@ function AddTransactionForm({
       ...d,
       amount,
       // Keep the stored role consistent if a relationship is already picked
-      // — flipping Out/In after choosing "Money lent" should still mean
-      // "Money lent", just now expressed as a repayment instead of a loan.
+      // — flipping Out/In after choosing "Loan" should still mean a loan,
+      // just now flowing the other direction.
       party_role: roleForRelationship(relationshipOf(d.party_role, d.party_kind), amount),
     }));
   }
@@ -854,8 +856,7 @@ function WhoseMoneyPicker({
         className="w-full rounded-lg border border-violet-200 bg-white px-2 py-1 dark:border-white/10 dark:bg-zinc-950 md:w-48"
       >
         <option value="owner">{t.amount < 0 ? "Money spent" : "Money received"}</option>
-        <option value="owed_to_me">Money lent</option>
-        <option value="owed_by_me">Money borrowed</option>
+        <option value="loan">{t.amount < 0 ? "Money lent" : "Money borrowed"}</option>
         <option value="own_account">Savings</option>
       </select>
       {isAccount && singleSavingsAccount && !showAccountPicker ? (
