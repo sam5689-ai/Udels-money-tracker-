@@ -64,6 +64,7 @@ export default function ReviewPage() {
   const [addFormOpen, setAddFormOpen] = useState(false);
   const [knownPeople, setKnownPeople] = useState<string[]>([]);
   const [knownAccounts, setKnownAccounts] = useState<string[]>([]);
+  const [knownSavingsAccounts, setKnownSavingsAccounts] = useState<string[]>([]);
 
   const loadCategories = useCallback(async () => {
     const res = await fetch("/api/categories");
@@ -83,6 +84,12 @@ export default function ReviewPage() {
     setKnownAccounts(data.people);
   }, []);
 
+  const loadSavingsAccounts = useCallback(async () => {
+    const res = await fetch("/api/people?kind=savings");
+    const data = await res.json();
+    setKnownSavingsAccounts(data.people);
+  }, []);
+
   const addKnownPerson = useCallback((name: string) => {
     setKnownPeople((prev) =>
       prev.some((p) => p.toLowerCase() === name.toLowerCase()) ? prev : [...prev, name].sort((a, b) => a.localeCompare(b))
@@ -91,6 +98,12 @@ export default function ReviewPage() {
 
   const addKnownAccount = useCallback((name: string) => {
     setKnownAccounts((prev) =>
+      prev.some((p) => p.toLowerCase() === name.toLowerCase()) ? prev : [...prev, name].sort((a, b) => a.localeCompare(b))
+    );
+  }, []);
+
+  const addKnownSavingsAccount = useCallback((name: string) => {
+    setKnownSavingsAccounts((prev) =>
       prev.some((p) => p.toLowerCase() === name.toLowerCase()) ? prev : [...prev, name].sort((a, b) => a.localeCompare(b))
     );
   }, []);
@@ -119,6 +132,10 @@ export default function ReviewPage() {
   useEffect(() => {
     Promise.resolve().then(() => loadAccounts());
   }, [loadAccounts]);
+
+  useEffect(() => {
+    Promise.resolve().then(() => loadSavingsAccounts());
+  }, [loadSavingsAccounts]);
 
   useEffect(() => {
     Promise.resolve().then(() => loadTransactions());
@@ -268,6 +285,8 @@ export default function ReviewPage() {
           onNewPerson={addKnownPerson}
           knownAccounts={knownAccounts}
           onNewAccount={addKnownAccount}
+          knownSavingsAccounts={knownSavingsAccounts}
+          onNewSavingsAccount={addKnownSavingsAccount}
           onCreated={() => {
             loadTransactions();
           }}
@@ -328,6 +347,8 @@ export default function ReviewPage() {
             onNewPerson={addKnownPerson}
             knownAccounts={knownAccounts}
             onNewAccount={addKnownAccount}
+            knownSavingsAccounts={knownSavingsAccounts}
+            onNewSavingsAccount={addKnownSavingsAccount}
             canConfirm={canConfirm(t)}
           />
         ))}
@@ -380,6 +401,8 @@ export default function ReviewPage() {
                 onNewPerson={addKnownPerson}
                 knownAccounts={knownAccounts}
                 onNewAccount={addKnownAccount}
+                knownSavingsAccounts={knownSavingsAccounts}
+                onNewSavingsAccount={addKnownSavingsAccount}
                 canConfirm={canConfirm(t)}
               />
             ))}
@@ -409,6 +432,8 @@ function AddTransactionForm({
   onNewPerson,
   knownAccounts,
   onNewAccount,
+  knownSavingsAccounts,
+  onNewSavingsAccount,
   onCreated,
 }: {
   categories: Category[];
@@ -417,6 +442,8 @@ function AddTransactionForm({
   onNewPerson: (name: string) => void;
   knownAccounts: string[];
   onNewAccount: (name: string) => void;
+  knownSavingsAccounts: string[];
+  onNewSavingsAccount: (name: string) => void;
   onCreated: () => void;
 }) {
   const [draft, setDraft] = useState<TxRow>({
@@ -626,6 +653,8 @@ function AddTransactionForm({
             onNewPerson={onNewPerson}
             knownAccounts={knownAccounts}
             onNewAccount={onNewAccount}
+            knownSavingsAccounts={knownSavingsAccounts}
+            onNewSavingsAccount={onNewSavingsAccount}
           />
         </div>
       </div>
@@ -659,6 +688,11 @@ interface PickerProps {
   onNewPerson: (name: string) => void;
   knownAccounts: string[];
   onNewAccount: (name: string) => void;
+  // Narrower than knownAccounts: only real savings-pot names (e.g. "Purely
+  // Investments"), not the physical banks tagged at upload. Lets the
+  // Savings picker auto-fill and hide itself when there's just one.
+  knownSavingsAccounts: string[];
+  onNewSavingsAccount: (name: string) => void;
 }
 
 function CategoryPicker({
@@ -761,11 +795,33 @@ function CategoryPicker({
   );
 }
 
-function WhoseMoneyPicker({ t, onPatch, knownPeople, onNewPerson, knownAccounts, onNewAccount }: PickerProps) {
+function WhoseMoneyPicker({
+  t,
+  onPatch,
+  knownPeople,
+  onNewPerson,
+  knownAccounts,
+  onNewAccount,
+  knownSavingsAccounts,
+  onNewSavingsAccount,
+}: PickerProps) {
   const relationship = relationshipOf(t.party_role, t.party_kind);
   const isAccount = relationship === "own_account";
   const isSpending = relationship === "owner" && t.amount < 0;
   const [showFundedBy, setShowFundedBy] = useState(false);
+  const [showAccountPicker, setShowAccountPicker] = useState(false);
+
+  // With exactly one known savings pot, there's nothing to actually choose —
+  // auto-fill it and skip asking, but stay editable in case a second one
+  // ever shows up.
+  const singleSavingsAccount = knownSavingsAccounts.length === 1 ? knownSavingsAccounts[0] : null;
+
+  useEffect(() => {
+    if (isAccount && singleSavingsAccount && !t.party.trim()) {
+      onPatch({ party: singleSavingsAccount });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAccount, singleSavingsAccount, t.party]);
 
   return (
     <div className="flex flex-col gap-1">
@@ -789,16 +845,36 @@ function WhoseMoneyPicker({ t, onPatch, knownPeople, onNewPerson, knownAccounts,
         <option value="owed_by_me">Money borrowed</option>
         <option value="own_account">Savings</option>
       </select>
-      {relationship !== "owner" && (
-        <PersonPicker
-          value={t.party === "Me" ? "" : t.party}
-          onCommit={(name) => onPatch({ party: name })}
-          knownNames={isAccount ? knownAccounts : knownPeople}
-          onNewName={isAccount ? onNewAccount : onNewPerson}
-          otherKindNames={isAccount ? knownPeople : knownAccounts}
-          entityNoun={isAccount ? "account" : "person"}
-          placeholder={isAccount ? "e.g. Halifax, Purely Investments" : "Person's name"}
-        />
+      {isAccount && singleSavingsAccount && !showAccountPicker ? (
+        <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-violet-200/50">
+          <span>{t.party || singleSavingsAccount}</span>
+          <button
+            type="button"
+            onClick={() => setShowAccountPicker(true)}
+            className="text-violet-400 underline underline-offset-2 hover:text-violet-600 dark:text-violet-300/50 dark:hover:text-violet-200"
+          >
+            change
+          </button>
+        </div>
+      ) : (
+        relationship !== "owner" && (
+          <PersonPicker
+            value={t.party === "Me" ? "" : t.party}
+            onCommit={(name) => onPatch({ party: name })}
+            knownNames={isAccount ? knownAccounts : knownPeople}
+            onNewName={
+              isAccount
+                ? (name) => {
+                    onNewAccount(name);
+                    onNewSavingsAccount(name);
+                  }
+                : onNewPerson
+            }
+            otherKindNames={isAccount ? knownPeople : knownAccounts}
+            entityNoun={isAccount ? "account" : "person"}
+            placeholder={isAccount ? "e.g. Halifax, Purely Investments" : "Person's name"}
+          />
+        )
       )}
       {isSpending &&
         (t.funded_by || showFundedBy ? (
@@ -843,6 +919,8 @@ function RowDesktop({
   onNewPerson,
   knownAccounts,
   onNewAccount,
+  knownSavingsAccounts,
+  onNewSavingsAccount,
   canConfirm,
 }: RowProps) {
   const isExpense = t.amount < 0;
@@ -884,6 +962,8 @@ function RowDesktop({
           onNewPerson={onNewPerson}
           knownAccounts={knownAccounts}
           onNewAccount={onNewAccount}
+          knownSavingsAccounts={knownSavingsAccounts}
+          onNewSavingsAccount={onNewSavingsAccount}
         />
       </td>
       <td className="px-3 py-2">
@@ -915,6 +995,8 @@ function RowCard({
   onNewPerson,
   knownAccounts,
   onNewAccount,
+  knownSavingsAccounts,
+  onNewSavingsAccount,
   canConfirm,
 }: RowProps) {
   const isExpense = t.amount < 0;
@@ -960,6 +1042,8 @@ function RowCard({
           onNewPerson={onNewPerson}
           knownAccounts={knownAccounts}
           onNewAccount={onNewAccount}
+          knownSavingsAccounts={knownSavingsAccounts}
+          onNewSavingsAccount={onNewSavingsAccount}
         />
       </div>
 
